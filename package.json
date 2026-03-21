@@ -1,0 +1,34 @@
+{
+  "name": "agent-chain-flow",
+  "version": "1.0.0",
+  "description": "Workflow manager for agentic use",
+  "homepage": "https://github.com/samsamit/agent-chain-flow#readme",
+  "bugs": {
+    "url": "https://github.com/samsamit/agent-chain-flow/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samsamit/agent-chain-flow.git"
+  },
+  "license": "MIT",
+  "author": "Samu Tiainen",
+  "type": "module",
+  "main": "dist/index.mjs",
+  "bin": {
+    "chainflow": "dist/index.mjs"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "watch": "tsdown --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsdown": "^0.21.4",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "zod": "^4.3.6"
+  }
+}
