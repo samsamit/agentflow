@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import { n as flowConfigSchema, r as rootConfigSchema, t as generateFlowSchema } from "./schema-DEA39TqG.mjs";
+import { n as flowConfigSchema, r as rootConfigSchema, t as generateFlowSchema } from "./schema-DfmkzlwG.mjs";
 import { Command } from "commander";
-import { checkbox, select } from "@inquirer/prompts";
-import { fileURLToPath } from "url";
-import * as fs from "fs";
-import * as path from "path";
-import { z } from "zod";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { parse, stringify } from "yaml";
+import { z } from "zod";
+import { fileURLToPath } from "node:url";
+import { checkbox, select } from "@inquirer/prompts";
 //#region src/constants.ts
 const DEFAULT_ROOT_FOLDER_NAME = "agentFlow";
 const CONFIG_FILE_NAME = ".agentflow.yaml";
@@ -24,258 +24,6 @@ const AI_TOOL_ROOTS = {
 	cursor: ".cursor",
 	windsurf: ".windsurf"
 };
-//#endregion
-//#region src/ide/jetbrains.ts
-/**
-* Writes .idea/jsonSchemas.xml with a schema mapping for agentflow flow configs.
-* Creates the .idea directory if it does not exist.
-* Returns the absolute path to the XML file.
-*/
-function writeJetBrainsSchema(projectRoot, schemaRelativePath) {
-	const ideaDir = path.join(projectRoot, ".idea");
-	const xmlPath = path.join(ideaDir, "jsonSchemas.xml");
-	if (!fs.existsSync(ideaDir)) fs.mkdirSync(ideaDir, { recursive: true });
-	const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="JsonSchemaMappingsProjectConfiguration">
-    <state>
-      <map>
-        <entry key="agentflow-flow">
-          <value>
-            <SchemaInfo>
-              <option name="name" value="agentflow-flow" />
-              <option name="relativePathToSchema" value="${schemaRelativePath.replace(/\\/g, "/")}" />
-              <option name="patterns">
-                <list>
-                  <Item value="agentFlow/flows/*/.agentflow.yaml" />
-                </list>
-              </option>
-            </SchemaInfo>
-          </value>
-        </entry>
-      </map>
-    </state>
-  </component>
-</project>
-`;
-	fs.writeFileSync(xmlPath, xml, "utf8");
-	return xmlPath;
-}
-//#endregion
-//#region src/ide/vscode.ts
-/**
-* Merges a yaml.schemas entry into .vscode/settings.json for the VS Code YAML extension.
-* Creates the file (and parent directory) if it does not exist.
-* Returns the absolute path to the settings file.
-*/
-function writeVsCodeSettings(projectRoot, schemaRelativePath) {
-	const settingsPath = path.join(projectRoot, ".vscode", "settings.json");
-	const settingsDir = path.dirname(settingsPath);
-	if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
-	let existing = {};
-	if (fs.existsSync(settingsPath)) try {
-		existing = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
-	} catch {
-		existing = {};
-	}
-	const yamlSchemas = { [schemaRelativePath]: ["agentFlow/flows/*/.agentflow.yaml"] };
-	const updated = {
-		...existing,
-		"yaml.schemas": {
-			...existing["yaml.schemas"],
-			...yamlSchemas
-		}
-	};
-	fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 2), "utf8");
-	return settingsPath;
-}
-//#endregion
-//#region src/ide/zed.ts
-/**
-* Merges a file_associations entry into .zed/settings.json for the Zed editor.
-* Creates the file (and parent directory) if it does not exist.
-* Returns the absolute path to the settings file.
-*/
-function writeZedSettings(projectRoot, schemaRelativePath) {
-	const settingsPath = path.join(projectRoot, ".zed", "settings.json");
-	const settingsDir = path.dirname(settingsPath);
-	if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
-	let existing = {};
-	if (fs.existsSync(settingsPath)) try {
-		existing = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
-	} catch {
-		existing = {};
-	}
-	const pattern = "**/agentFlow/flows/*/.agentflow.yaml";
-	const schemaPathForZed = schemaRelativePath.replace(/\\/g, "/");
-	const fileAssociations = { [pattern]: schemaPathForZed };
-	const updated = {
-		...existing,
-		file_associations: {
-			...existing["file_associations"],
-			...fileAssociations
-		}
-	};
-	fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 2), "utf8");
-	return settingsPath;
-}
-//#endregion
-//#region src/output.ts
-/**
-* All stdout/stderr output for agentflow CLI.
-* Every output function in this module writes directly to process.stdout or process.stderr.
-* No console.log or console.error is used anywhere else in the codebase.
-*/
-function write(text) {
-	process.stdout.write(text + "\n");
-}
-function writeErr(text) {
-	process.stderr.write(text + "\n");
-}
-const c = {
-	reset: "\x1B[0m",
-	bold: "\x1B[1m",
-	dim: "\x1B[2m",
-	cyan: "\x1B[36m",
-	blue: "\x1B[34m",
-	green: "\x1B[32m",
-	yellow: "\x1B[33m",
-	magenta: "\x1B[35m",
-	white: "\x1B[37m",
-	gray: "\x1B[90m",
-	brightCyan: "\x1B[96m",
-	brightWhite: "\x1B[97m"
-};
-function styled(text, ...codes) {
-	return `${codes.join("")}${text}${c.reset}`;
-}
-function banner() {
-	const logo = [
-		"                          __    ____              ",
-		"  ____ _____ ____  ____  / /_  / __/ ____ _      __",
-		" / __ `/ __ `/ _ \\/ __ \\/ __/ / /_  / __ \\ | /| / /",
-		"/ /_/ / /_/ /  __/ / / / /_ / __/ / /_/ / |/ |/ / ",
-		"\\__,_/\\__, /\\___/_/ /_/\\__//_/    \\____/|__/|__/  ",
-		"     /____/                                        "
-	];
-	write("");
-	for (const line of logo) write(styled(line, c.bold, c.brightCyan));
-	write(styled("  agent-first workflow engine", c.dim, c.cyan));
-	write("");
-}
-function initSection(title) {
-	write("");
-	write(styled(`  ${title}`, c.bold, c.brightWhite));
-	write(styled("  " + "─".repeat(44), c.gray));
-}
-function initCreated(label) {
-	write(`  ${styled("✓", c.green, c.bold)}  ${styled(label, c.white)}`);
-}
-function initSkipped(label) {
-	write(`  ${styled("–", c.gray)}  ${styled(label, c.dim, c.gray)}`);
-}
-function initWarning(label) {
-	write(`  ${styled("⚠", c.yellow, c.bold)}  ${styled(label, c.yellow)}`);
-}
-function initSuccess() {
-	write("");
-	write(styled("  ────────────────────────────────────────────────", c.gray));
-	write(`  ${styled("✦", c.brightCyan, c.bold)}  ${styled("agentflow initialized successfully", c.bold, c.brightWhite)}`);
-	write(`     ${styled("Next:", c.dim, c.gray)} ${styled("agentflow validate", c.cyan)}`);
-	write(`     ${styled("Docs:", c.dim, c.gray)} ${styled("https://github.com/samsamit/agentflow#readme", c.dim, c.cyan)}`);
-	write("");
-}
-function info(message) {
-	write(message);
-}
-function taskStarted(taskName, flowName, activeSteps) {
-	write(`Task started: ${taskName}`);
-	write(`Flow: ${flowName}`);
-	write(`Active steps: ${activeSteps.join(", ")}`);
-	write("Run: agentflow next");
-}
-function taskComplete(taskName) {
-	write(`Task complete: ${taskName}`);
-	write("All steps are done.");
-}
-/** subagent: undefined = no subagent, true = generic, string = named */
-function nextStep(stepName, subagent, taskName) {
-	write(`Step: ${stepName}`);
-	write("Status: ready");
-	if (subagent === void 0) write(`Run: agentflow context --step ${stepName}`);
-	else if (subagent === true) {
-		write("Subagent: spawn a subagent");
-		write(`Then run: agentflow context --step ${stepName} --task ${taskName}`);
-	} else {
-		write(`Subagent: spawn subagent "${subagent}"`);
-		write(`Then run: agentflow context --step ${stepName} --task ${taskName}`);
-	}
-}
-function nextParallel(steps, taskName) {
-	if (!steps.some((s) => s.subagent !== void 0)) {
-		write("Steps ready for parallel execution:");
-		for (const step of steps) write(`- ${step.name}: run agentflow context --step ${step.name}`);
-	} else {
-		write("Steps ready for parallel execution. Spawn a subagent for each step below:");
-		for (const step of steps) if (typeof step.subagent === "string") write(`- ${step.name}: spawn subagent "${step.subagent}", then run agentflow context --step ${step.name} --task ${taskName}`);
-		else if (step.subagent === true) write(`- ${step.name}: spawn a subagent, then run agentflow context --step ${step.name} --task ${taskName}`);
-		else write(`- ${step.name}: run agentflow context --step ${step.name}`);
-		write("Run all subagents in parallel before proceeding.");
-	}
-}
-function stepContext(content) {
-	write(content);
-}
-function stepComplete(stepName, unblocked) {
-	write(`Step complete: ${stepName}`);
-	if (unblocked.length > 0) write(`Unblocked: ${unblocked.join(", ")}`);
-	write("Run: agentflow next");
-}
-function stepRevised(stepName, revisionCount, maxRevisions, cascaded) {
-	write(`Step marked for revision: ${stepName} (revision ${revisionCount}/${maxRevisions})`);
-	write(`Cascaded to ready: ${cascaded.join(", ")}`);
-	write("Run: agentflow next");
-}
-function revisionIgnored(stepName, maxRevisions) {
-	write(`Warning: Step "${stepName}" has reached the maximum number of revisions (${maxRevisions}/${maxRevisions}). Revision ignored.`);
-	write("Run: agentflow next");
-}
-function taskState(args) {
-	write(`Task: ${args.taskName}`);
-	write(`Flow: ${args.flowName}`);
-	write(`Active: ${args.active}`);
-	write("");
-	write("Steps:");
-	for (const step of args.steps) {
-		const namePad = step.name.padEnd(16);
-		const statePad = step.state.padEnd(12);
-		let detail = "";
-		if (step.generates && step.generatePath) {
-			const exists = step.fileExists ? "[exists]" : "[missing]";
-			detail = `generates: ${step.generates} → ${step.generatePath} ${exists}`;
-		} else if (step.requires && step.requires.length > 0) detail = `requires: ${step.requires.join(", ")}`;
-		write(`${namePad}${statePad}${detail}`.trimEnd());
-	}
-}
-function flowList(flows) {
-	write("Flows:");
-	for (const flow of flows) write(`${flow.name.padEnd(12)}${flow.description}`);
-}
-function taskList(tasks) {
-	write("Tasks:");
-	for (const task of tasks) write(`${task.name.padEnd(14)}${task.active ? "(active)    " : "            "}flow: ${task.flowName}    steps: ${task.doneSteps}/${task.totalSteps} done`);
-}
-function validationPassed(target) {
-	write(`Validation passed: ${target}`);
-}
-function validationFailed(target, errors) {
-	writeErr(`Validation failed: ${target}`);
-	for (const err of errors) writeErr(`  - ${err}`);
-}
-function error(err) {
-	if (err instanceof Error) writeErr(`Error: ${err.message}`);
-	else writeErr(`Error: ${String(err)}`);
-}
 //#endregion
 //#region src/utils/fileIo.ts
 /**
@@ -345,155 +93,6 @@ function copyDirRecursive(sourceDir, destDir) {
 		const dstPath = path.join(destDir, entry.name);
 		if (entry.isDirectory()) copyDirRecursive(srcPath, dstPath);
 		else fs.copyFileSync(srcPath, dstPath);
-	}
-}
-//#endregion
-//#region src/templates/config.yaml
-var config_default = "defaultFlow: plan";
-//#endregion
-//#region src/commands/init.ts
-/** Resolves the absolute path to the bundled flows directory (flows/ at package root). */
-function getBundledFlowsDir() {
-	const __filename = fileURLToPath(import.meta.url);
-	const candidates = [path.resolve(path.dirname(__filename), "..", "flows"), path.resolve(path.dirname(__filename), "..", "..", "flows")];
-	for (const candidate of candidates) if (fs.existsSync(candidate)) return candidate;
-	info("  Warning: Bundled flows directory not found — skipping flow copy.");
-	return "";
-}
-/** Resolves the absolute path to the bundled skill file (skills/agentflow/SKILL.md at package root). */
-function getBundledSkillFile() {
-	const __filename = fileURLToPath(import.meta.url);
-	const candidates = [path.resolve(path.dirname(__filename), "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME), path.resolve(path.dirname(__filename), "..", "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME)];
-	for (const candidate of candidates) if (fs.existsSync(candidate)) return candidate;
-	return candidates[candidates.length - 1] ?? "";
-}
-async function init() {
-	try {
-		const currentDir = process.cwd();
-		const mainFolderPath = path.join(currentDir, DEFAULT_ROOT_FOLDER_NAME);
-		const configFilePath = path.join(mainFolderPath, CONFIG_FILE_NAME);
-		banner();
-		initSection("Setting up project structure");
-		createFolder(mainFolderPath);
-		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/`);
-		writeFile(configFilePath, config_default);
-		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
-		createFolder(path.join(mainFolderPath, TASKS_FOLDER_NAME));
-		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
-		createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
-		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
-		initSection("Generating flow JSON schema");
-		const schemaDir = path.join(currentDir, "schema");
-		generateFlowSchema(path.join(schemaDir, SCHEMA_FILE_NAME));
-		initCreated(`schema/${SCHEMA_FILE_NAME}`);
-		let selectedFlows = [];
-		const bundledFlowsDir = getBundledFlowsDir();
-		if (bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
-			const bundledFlowNames = listDirs(bundledFlowsDir);
-			if (bundledFlowNames.length > 0) {
-				initSection("Bundled flows");
-				selectedFlows = await checkbox({
-					message: "Select flows to copy into your project:",
-					choices: bundledFlowNames.map((name) => ({
-						name,
-						value: name,
-						checked: true
-					}))
-				});
-				if (selectedFlows.length > 0) for (const flowName of selectedFlows) {
-					copyDirRecursive(path.join(bundledFlowsDir, flowName), path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName));
-					initCreated(`flows/${flowName}/`);
-				}
-				else initSkipped("No flows selected");
-			}
-		}
-		initSection("IDE integration");
-		const schemaRelativePath = `schema/${SCHEMA_FILE_NAME}`;
-		const ideChoice = await select({
-			message: "Select your IDE for YAML schema support:",
-			choices: [
-				{
-					name: "VS Code",
-					value: "vscode"
-				},
-				{
-					name: "JetBrains (IntelliJ, WebStorm, etc.)",
-					value: "jetbrains"
-				},
-				{
-					name: "Zed",
-					value: "zed"
-				},
-				{
-					name: "None / skip",
-					value: "none"
-				}
-			]
-		});
-		if (ideChoice === "vscode") {
-			const settingsPath = writeVsCodeSettings(currentDir, schemaRelativePath);
-			initCreated(path.relative(currentDir, settingsPath));
-		} else if (ideChoice === "jetbrains") {
-			const xmlPath = writeJetBrainsSchema(currentDir, schemaRelativePath);
-			initCreated(path.relative(currentDir, xmlPath));
-		} else if (ideChoice === "zed") {
-			const settingsPath = writeZedSettings(currentDir, schemaRelativePath);
-			initCreated(path.relative(currentDir, settingsPath));
-		} else initSkipped("IDE configuration skipped");
-		initSection("AI tool integration");
-		const aiToolChoice = await select({
-			message: "Select your AI tool to inject the agentflow skill:",
-			choices: [
-				{
-					name: "Claude Code",
-					value: "claude-code"
-				},
-				{
-					name: "Cursor",
-					value: "cursor"
-				},
-				{
-					name: "Windsurf",
-					value: "windsurf"
-				},
-				{
-					name: "None / skip",
-					value: "none"
-				}
-			]
-		});
-		if (aiToolChoice !== "none") {
-			const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
-			if (toolRoot !== void 0) {
-				const bundledSkillFile = getBundledSkillFile();
-				if (fileExists(bundledSkillFile)) {
-					const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, SKILL_NAME);
-					const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
-					createFolder(skillDestDir);
-					fs.copyFileSync(bundledSkillFile, skillDestPath);
-					initCreated(path.relative(currentDir, skillDestPath));
-				} else initWarning("Bundled skill file not found — skipping");
-				if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
-					const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
-					for (const flowName of selectedFlows) {
-						const agentsSrcDir = path.join(bundledFlowsDir, flowName, AGENTS_FOLDER_NAME);
-						if (fileExists(agentsSrcDir)) {
-							createFolder(agentsDestDir);
-							for (const agentFile of fs.readdirSync(agentsSrcDir)) {
-								const agentSrc = path.join(agentsSrcDir, agentFile);
-								const agentDest = path.join(agentsDestDir, agentFile);
-								fs.copyFileSync(agentSrc, agentDest);
-								initCreated(path.relative(currentDir, agentDest));
-							}
-						}
-					}
-				}
-			}
-		} else initSkipped("AI tool integration skipped");
-		initSuccess();
-	} catch (err) {
-		error(err);
-		process.exit(1);
 	}
 }
 //#endregion
@@ -634,73 +233,227 @@ function validateProject(rootValid, flowsFolderExists, tasksFolderExists, flows)
 	};
 }
 //#endregion
-//#region src/commands/validate.ts
-async function validateCommand(options) {
-	const projectRoot = process.cwd();
-	try {
-		if (options.flow !== void 0) {
-			const flowName = options.flow;
-			const result = validateFlow(loadFlow(projectRoot, flowName), listInstructionFiles(projectRoot, flowName));
-			if (result.valid) validationPassed(`flow: ${flowName}`);
-			else {
-				validationFailed(`flow: ${flowName}`, result.errors);
-				process.exit(1);
-			}
-		} else {
-			let rootValid = true;
-			try {
-				loadRootConfig(projectRoot);
-			} catch {
-				rootValid = false;
-			}
-			const flowsFolderExists = fileExists(path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, FLOWS_FOLDER_NAME));
-			const tasksFolderExists = fileExists(path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME));
-			const flowNames = listFlowNames(projectRoot);
-			const flows = [];
-			for (const flowName of flowNames) try {
-				const flow = loadFlow(projectRoot, flowName);
-				const instructionPaths = listInstructionFiles(projectRoot, flowName);
-				flows.push({
-					flow,
-					instructionPaths
-				});
-			} catch (err) {
-				flows.push({
-					flow: {
-						name: flowName,
-						steps: []
-					},
-					instructionPaths: [],
-					loadError: err instanceof Error ? err.message : String(err)
-				});
-			}
-			const result = validateProject(rootValid, flowsFolderExists, tasksFolderExists, flows);
-			if (result.valid) validationPassed("project");
-			else {
-				validationFailed("project", result.errors);
-				process.exit(1);
-			}
-		}
-	} catch (err) {
-		error(err);
-		process.exit(1);
-	}
-}
-//#endregion
-//#region src/task/state.ts
+//#region src/graph/index.ts
 /**
-* Computes the initial step states for a new task.
-* Steps with no `requires` (or an empty array) are `ready`.
-* All others are `blocked`.
-* Pure function — no filesystem access.
+* Maps each step name → names of steps that depend on it (reverse edges).
 */
-function getInitialStepStates(steps) {
-	const result = {};
+function buildReverseDependencyGraph(steps) {
+	const graph = /* @__PURE__ */ new Map();
 	for (const step of steps) {
-		const hasRequires = Array.isArray(step.requires) && step.requires.length > 0;
-		result[step.name] = { state: hasRequires ? "blocked" : "ready" };
+		if (!graph.has(step.name)) graph.set(step.name, []);
+		for (const req of step.requires ?? []) {
+			const dependents = graph.get(req) ?? [];
+			dependents.push(step.name);
+			graph.set(req, dependents);
+		}
+	}
+	return graph;
+}
+/**
+* Returns names of steps currently in `ready` state.
+*/
+function resolveReadySteps(steps, taskStepStates) {
+	return steps.filter((step) => taskStepStates[step.name]?.state === "ready").map((step) => step.name);
+}
+/**
+* Returns names of `blocked` steps that should become `ready` after
+* `completedStepName` is marked done (i.e. all their requires are now done).
+*
+* NOTE: The caller is responsible for having already updated the state of
+* `completedStepName` to `done` before calling this, OR this function treats
+* `completedStepName` as done for the purpose of its calculation.
+*/
+function resolveUnblockedSteps(steps, taskStepStates, completedStepName) {
+	const result = [];
+	for (const step of steps) {
+		if (taskStepStates[step.name]?.state !== "blocked") continue;
+		const requires = step.requires ?? [];
+		if (requires.length === 0) continue;
+		if (requires.every((req) => req === completedStepName || taskStepStates[req]?.state === "done")) result.push(step.name);
 	}
 	return result;
+}
+/**
+* Returns names of all transitively dependent steps that should be reset to
+* `ready` after `revisedStepName` is marked for revision.
+* Does NOT include the revised step itself.
+*/
+function resolveTransitiveCascade(steps, _taskStepStates, revisedStepName) {
+	const reverseGraph = buildReverseDependencyGraph(steps);
+	const cascade = /* @__PURE__ */ new Set();
+	const queue = [revisedStepName];
+	while (queue.length > 0) {
+		const current = queue.shift();
+		if (current === void 0) break;
+		for (const dependent of reverseGraph.get(current) ?? []) if (!cascade.has(dependent)) {
+			cascade.add(dependent);
+			queue.push(dependent);
+		}
+	}
+	return [...cascade];
+}
+/**
+* Returns true when all steps are in `done` state.
+*/
+function isTaskComplete(taskStepStates) {
+	return Object.values(taskStepStates).every((s) => s.state === "done");
+}
+//#endregion
+//#region src/output.ts
+/**
+* All stdout/stderr output for agentflow CLI.
+* Every output function in this module writes directly to process.stdout or process.stderr.
+* No console.log or console.error is used anywhere else in the codebase.
+*/
+function write(text) {
+	process.stdout.write(`${text}\n`);
+}
+function writeErr(text) {
+	process.stderr.write(`${text}\n`);
+}
+const c = {
+	reset: "\x1B[0m",
+	bold: "\x1B[1m",
+	dim: "\x1B[2m",
+	cyan: "\x1B[36m",
+	blue: "\x1B[34m",
+	green: "\x1B[32m",
+	yellow: "\x1B[33m",
+	magenta: "\x1B[35m",
+	white: "\x1B[37m",
+	gray: "\x1B[90m",
+	brightCyan: "\x1B[96m",
+	brightWhite: "\x1B[97m"
+};
+function styled(text, ...codes) {
+	return `${codes.join("")}${text}${c.reset}`;
+}
+function banner() {
+	const logo = [
+		"                          __    ____              ",
+		"  ____ _____ ____  ____  / /_  / __/ ____ _      __",
+		" / __ `/ __ `/ _ \\/ __ \\/ __/ / /_  / __ \\ | /| / /",
+		"/ /_/ / /_/ /  __/ / / / /_ / __/ / /_/ / |/ |/ / ",
+		"\\__,_/\\__, /\\___/_/ /_/\\__//_/    \\____/|__/|__/  ",
+		"     /____/                                        "
+	];
+	write("");
+	for (const line of logo) write(styled(line, c.bold, c.brightCyan));
+	write(styled("  agent-first workflow engine", c.dim, c.cyan));
+	write("");
+}
+function initSection(title) {
+	write("");
+	write(styled(`  ${title}`, c.bold, c.brightWhite));
+	write(styled(`  ${"─".repeat(44)}`, c.gray));
+}
+function initCreated(label) {
+	write(`  ${styled("✓", c.green, c.bold)}  ${styled(label, c.white)}`);
+}
+function initSkipped(label) {
+	write(`  ${styled("–", c.gray)}  ${styled(label, c.dim, c.gray)}`);
+}
+function initWarning(label) {
+	write(`  ${styled("⚠", c.yellow, c.bold)}  ${styled(label, c.yellow)}`);
+}
+function initSuccess() {
+	write("");
+	write(styled("  ────────────────────────────────────────────────", c.gray));
+	write(`  ${styled("✦", c.brightCyan, c.bold)}  ${styled("agentflow initialized successfully", c.bold, c.brightWhite)}`);
+	write(`     ${styled("Next:", c.dim, c.gray)} ${styled("agentflow validate", c.cyan)}`);
+	write(`     ${styled("Docs:", c.dim, c.gray)} ${styled("https://github.com/samsamit/agentflow#readme", c.dim, c.cyan)}`);
+	write("");
+}
+function info(message) {
+	write(message);
+}
+function taskStarted(taskName, flowName, activeSteps) {
+	write(`Task started: ${taskName}`);
+	write(`Flow: ${flowName}`);
+	write(`Active steps: ${activeSteps.join(", ")}`);
+	write("Run: agentflow next");
+}
+function taskComplete(taskName) {
+	write(`Task complete: ${taskName}`);
+	write("All steps are done.");
+}
+/** subagent: undefined = no subagent, true = generic, string = named */
+function nextStep(stepName, subagent, taskName) {
+	write(`Step: ${stepName}`);
+	write("Status: ready");
+	if (subagent === void 0) write(`Run: agentflow context --step ${stepName}`);
+	else if (subagent === true) {
+		write("Subagent: spawn a subagent");
+		write(`Then run: agentflow context --step ${stepName} --task ${taskName}`);
+	} else {
+		write(`Subagent: spawn subagent "${subagent}"`);
+		write(`Then run: agentflow context --step ${stepName} --task ${taskName}`);
+	}
+}
+function nextParallel(steps, taskName) {
+	if (!steps.some((s) => s.subagent !== void 0)) {
+		write("Steps ready for parallel execution:");
+		for (const step of steps) write(`- ${step.name}: run agentflow context --step ${step.name}`);
+	} else {
+		write("Steps ready for parallel execution. Spawn a subagent for each step below:");
+		for (const step of steps) if (typeof step.subagent === "string") write(`- ${step.name}: spawn subagent "${step.subagent}", then run agentflow context --step ${step.name} --task ${taskName}`);
+		else if (step.subagent === true) write(`- ${step.name}: spawn a subagent, then run agentflow context --step ${step.name} --task ${taskName}`);
+		else write(`- ${step.name}: run agentflow context --step ${step.name}`);
+		write("Run all subagents in parallel before proceeding.");
+	}
+}
+function stepContext(content) {
+	write(content);
+}
+function stepComplete(stepName, unblocked) {
+	write(`Step complete: ${stepName}`);
+	if (unblocked.length > 0) write(`Unblocked: ${unblocked.join(", ")}`);
+	write("Run: agentflow next");
+}
+function stepRevised(stepName, revisionCount, maxRevisions, cascaded) {
+	write(`Step marked for revision: ${stepName} (revision ${revisionCount}/${maxRevisions})`);
+	write(`Cascaded to ready: ${cascaded.join(", ")}`);
+	write("Run: agentflow next");
+}
+function revisionIgnored(stepName, maxRevisions) {
+	write(`Warning: Step "${stepName}" has reached the maximum number of revisions (${maxRevisions}/${maxRevisions}). Revision ignored.`);
+	write("Run: agentflow next");
+}
+function taskState(args) {
+	write(`Task: ${args.taskName}`);
+	write(`Flow: ${args.flowName}`);
+	write(`Active: ${args.active}`);
+	write("");
+	write("Steps:");
+	for (const step of args.steps) {
+		const namePad = step.name.padEnd(16);
+		const statePad = step.state.padEnd(12);
+		let detail = "";
+		if (step.generates && step.generatePath) {
+			const exists = step.fileExists ? "[exists]" : "[missing]";
+			detail = `generates: ${step.generates} → ${step.generatePath} ${exists}`;
+		} else if (step.requires && step.requires.length > 0) detail = `requires: ${step.requires.join(", ")}`;
+		write(`${namePad}${statePad}${detail}`.trimEnd());
+	}
+}
+function flowList(flows) {
+	write("Flows:");
+	for (const flow of flows) write(`${flow.name.padEnd(12)}${flow.description}`);
+}
+function taskList(tasks) {
+	write("Tasks:");
+	for (const task of tasks) write(`${task.name.padEnd(14)}${task.active ? "(active)    " : "            "}flow: ${task.flowName}    steps: ${task.doneSteps}/${task.totalSteps} done`);
+}
+function validationPassed(target) {
+	write(`Validation passed: ${target}`);
+}
+function validationFailed(target, errors) {
+	writeErr(`Validation failed: ${target}`);
+	for (const err of errors) writeErr(`  - ${err}`);
+}
+function error(err) {
+	if (err instanceof Error) writeErr(`Error: ${err.message}`);
+	else writeErr(`Error: ${String(err)}`);
 }
 //#endregion
 //#region src/task/schema.ts
@@ -799,150 +552,70 @@ function setActiveTask(projectRoot, taskName) {
 	}
 }
 //#endregion
-//#region src/commands/start.ts
+//#region src/task/state.ts
 /**
-* Core logic for starting a new task.
-* Throws on invalid state (task already exists, flow not found, etc.).
+* Computes the initial step states for a new task.
+* Steps with no `requires` (or an empty array) are `ready`.
+* All others are `blocked`.
+* Pure function — no filesystem access.
 */
-function startCommand(args) {
-	const projectRoot = args.projectRoot ?? process.cwd();
-	const { taskName } = args;
-	const taskDir = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName);
-	if (fileExists(taskDir)) throw new Error(`Task "${taskName}" already exists.`);
-	const flowName = resolveFlowName(projectRoot, args.flowName);
-	const initialSteps = getInitialStepStates(loadFlow(projectRoot, flowName).steps);
-	const taskState = {
-		active: true,
-		flow: flowName,
-		steps: initialSteps
-	};
-	createFolder(taskDir);
-	writeTaskState(taskDir, taskState);
-	setActiveTask(projectRoot, taskName);
-	taskStarted(taskName, flowName, Object.entries(initialSteps).filter(([, s]) => s.state === "ready").map(([name]) => name));
-}
-/**
-* CLI command handler for `agentflow start`.
-* Parses args from commander, calls startCommand, exits on error.
-*/
-async function startCommandHandler(options) {
-	try {
-		startCommand({
-			taskName: options.task,
-			flowName: options.flow
-		});
-	} catch (err) {
-		error(err);
-		process.exit(1);
-	}
-}
-//#endregion
-//#region src/graph/index.ts
-/**
-* Maps each step name → names of steps that depend on it (reverse edges).
-*/
-function buildReverseDependencyGraph(steps) {
-	const graph = /* @__PURE__ */ new Map();
+function getInitialStepStates(steps) {
+	const result = {};
 	for (const step of steps) {
-		if (!graph.has(step.name)) graph.set(step.name, []);
-		for (const req of step.requires ?? []) {
-			const dependents = graph.get(req) ?? [];
-			dependents.push(step.name);
-			graph.set(req, dependents);
-		}
-	}
-	return graph;
-}
-/**
-* Returns names of steps currently in `ready` state.
-*/
-function resolveReadySteps(steps, taskStepStates) {
-	return steps.filter((step) => taskStepStates[step.name]?.state === "ready").map((step) => step.name);
-}
-/**
-* Returns names of `blocked` steps that should become `ready` after
-* `completedStepName` is marked done (i.e. all their requires are now done).
-*
-* NOTE: The caller is responsible for having already updated the state of
-* `completedStepName` to `done` before calling this, OR this function treats
-* `completedStepName` as done for the purpose of its calculation.
-*/
-function resolveUnblockedSteps(steps, taskStepStates, completedStepName) {
-	const result = [];
-	for (const step of steps) {
-		if (taskStepStates[step.name]?.state !== "blocked") continue;
-		const requires = step.requires ?? [];
-		if (requires.length === 0) continue;
-		if (requires.every((req) => req === completedStepName || taskStepStates[req]?.state === "done")) result.push(step.name);
+		const hasRequires = Array.isArray(step.requires) && step.requires.length > 0;
+		result[step.name] = { state: hasRequires ? "blocked" : "ready" };
 	}
 	return result;
 }
-/**
-* Returns names of all transitively dependent steps that should be reset to
-* `ready` after `revisedStepName` is marked for revision.
-* Does NOT include the revised step itself.
-*/
-function resolveTransitiveCascade(steps, _taskStepStates, revisedStepName) {
-	const reverseGraph = buildReverseDependencyGraph(steps);
-	const cascade = /* @__PURE__ */ new Set();
-	const queue = [revisedStepName];
-	while (queue.length > 0) {
-		const current = queue.shift();
-		if (current === void 0) break;
-		for (const dependent of reverseGraph.get(current) ?? []) if (!cascade.has(dependent)) {
-			cascade.add(dependent);
-			queue.push(dependent);
-		}
-	}
-	return [...cascade];
-}
-/**
-* Returns true when all steps are in `done` state.
-*/
-function isTaskComplete(taskStepStates) {
-	return Object.values(taskStepStates).every((s) => s.state === "done");
-}
 //#endregion
-//#region src/commands/next.ts
+//#region src/commands/complete.ts
 /**
-* Core logic for the `agentflow next` command.
-* Determines the next step(s) to work on and outputs them.
-* Throws on invalid state.
+* Core logic for completing a step.
+* Throws on invalid state (step not found, step not completable, etc.).
 */
-function nextCommand(args) {
+function completeCommand(args) {
 	const projectRoot = args.projectRoot ?? process.cwd();
-	const { name: taskName, state: taskState } = resolveTask(projectRoot, args.taskName);
-	if (args.taskName !== void 0) setActiveTask(projectRoot, args.taskName);
+	const { stepName, taskName } = args;
+	const { state: taskState, dir: taskDir } = resolveTask(projectRoot, taskName);
+	if (taskName !== void 0) setActiveTask(projectRoot, taskName);
 	const flow = loadFlow(projectRoot, taskState.flow);
-	if (isTaskComplete(taskState.steps)) {
-		taskComplete(taskName);
-		return;
+	if (!flow.steps.some((s) => s.name === stepName)) throw new Error(`Step "${stepName}" not found in flow "${taskState.flow}".`);
+	const currentStepState = taskState.steps[stepName];
+	if (currentStepState === void 0 || currentStepState.state !== "ready" && currentStepState.state !== "revision") {
+		const currentState = currentStepState?.state ?? "unknown";
+		throw new Error(`Step "${stepName}" is not in a completable state (current state: ${currentState}).`);
 	}
-	const readyStepNames = resolveReadySteps(flow.steps, taskState.steps);
-	if (readyStepNames.length === 0) throw new Error(`No ready steps found for task "${taskName}".`);
-	if (args.parallel) nextParallel(readyStepNames.map((name) => {
-		const stepConfig = flow.steps.find((s) => s.name === name);
-		return {
-			name,
-			subagent: stepConfig?.subagent === false ? void 0 : stepConfig?.subagent
+	const doneStep = currentStepState.revisionCount !== void 0 ? {
+		state: "done",
+		revisionCount: currentStepState.revisionCount
+	} : { state: "done" };
+	const updatedSteps = {
+		...taskState.steps,
+		[stepName]: doneStep
+	};
+	const unblocked = resolveUnblockedSteps(flow.steps, updatedSteps, stepName);
+	for (const name of unblocked) {
+		const s = updatedSteps[name];
+		if (s !== void 0) updatedSteps[name] = {
+			...s,
+			state: "ready"
 		};
-	}), taskName);
-	else {
-		const firstStepName = readyStepNames[0];
-		if (firstStepName === void 0) throw new Error(`No ready steps found for task "${taskName}".`);
-		const stepConfig = flow.steps.find((s) => s.name === firstStepName);
-		nextStep(firstStepName, stepConfig?.subagent === false ? void 0 : stepConfig?.subagent, taskName);
 	}
+	writeTaskState(taskDir, {
+		...taskState,
+		steps: updatedSteps
+	});
+	stepComplete(stepName, unblocked);
 }
 /**
-* CLI command handler for `agentflow next`.
-* Parses args from commander, calls nextCommand, exits on error.
+* CLI command handler for `agentflow complete`.
+* Parses args from commander, calls completeCommand, exits on error.
 */
-async function nextCommandHandler(options) {
+async function completeCommandHandler(options) {
 	try {
-		nextCommand({
-			taskName: options.task,
-			parallel: options.parallel
+		completeCommand({
+			stepName: options.step,
+			...options.task !== void 0 && { taskName: options.task }
 		});
 	} catch (err) {
 		error(err);
@@ -1103,7 +776,7 @@ async function contextCommandHandler(options) {
 	try {
 		contextCommand({
 			stepName: options.step,
-			taskName: options.task
+			...options.task !== void 0 && { taskName: options.task }
 		});
 	} catch (err) {
 		error(err);
@@ -1111,45 +784,244 @@ async function contextCommandHandler(options) {
 	}
 }
 //#endregion
-//#region src/commands/state.ts
+//#region src/ide/jetbrains.ts
 /**
-* Core logic for the `state` command.
-* Resolves the task (active or named), loads its flow config,
-* and prints each step's status with generates/requires details.
-* Throws on error.
+* Writes .idea/jsonSchemas.xml with a schema mapping for agentflow flow configs.
+* Creates the .idea directory if it does not exist.
+* Returns the absolute path to the XML file.
 */
-function stateCommand(args) {
-	const projectRoot = args.projectRoot ?? process.cwd();
-	const { name: taskName, state: taskState$1 } = resolveTask(projectRoot, args.taskName);
-	if (args.taskName !== void 0) setActiveTask(projectRoot, args.taskName);
-	const steps = loadFlow(projectRoot, taskState$1.flow).steps.map((stepConfig) => {
-		const state = taskState$1.steps[stepConfig.name]?.state ?? "blocked";
-		const entry = {
-			name: stepConfig.name,
-			state
-		};
-		if (stepConfig.generates) {
-			const generatePath = path.join(TASKS_FOLDER_NAME, taskName, stepConfig.generates);
-			const absoluteGeneratePath = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, stepConfig.generates);
-			entry.generates = stepConfig.generates;
-			entry.generatePath = generatePath;
-			entry.fileExists = fileExists(absoluteGeneratePath);
-		} else if (state === "blocked") entry.requires = stepConfig.requires ?? [];
-		return entry;
-	});
-	taskState({
-		taskName,
-		flowName: taskState$1.flow,
-		active: taskState$1.active,
-		steps
-	});
+function writeJetBrainsSchema(projectRoot, schemaRelativePath) {
+	const ideaDir = path.join(projectRoot, ".idea");
+	const xmlPath = path.join(ideaDir, "jsonSchemas.xml");
+	if (!fs.existsSync(ideaDir)) fs.mkdirSync(ideaDir, { recursive: true });
+	const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="JsonSchemaMappingsProjectConfiguration">
+    <state>
+      <map>
+        <entry key="agentflow-flow">
+          <value>
+            <SchemaInfo>
+              <option name="name" value="agentflow-flow" />
+              <option name="relativePathToSchema" value="${schemaRelativePath.replace(/\\/g, "/")}" />
+              <option name="patterns">
+                <list>
+                  <Item value="agentFlow/flows/*/.agentflow.yaml" />
+                </list>
+              </option>
+            </SchemaInfo>
+          </value>
+        </entry>
+      </map>
+    </state>
+  </component>
+</project>
+`;
+	fs.writeFileSync(xmlPath, xml, "utf8");
+	return xmlPath;
 }
+//#endregion
+//#region src/ide/vscode.ts
 /**
-* CLI command handler for `agentflow state`.
+* Merges a yaml.schemas entry into .vscode/settings.json for the VS Code YAML extension.
+* Creates the file (and parent directory) if it does not exist.
+* Returns the absolute path to the settings file.
 */
-async function stateCommandHandler(options) {
+function writeVsCodeSettings(projectRoot, schemaRelativePath) {
+	const settingsPath = path.join(projectRoot, ".vscode", "settings.json");
+	const settingsDir = path.dirname(settingsPath);
+	if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
+	let existing = {};
+	if (fs.existsSync(settingsPath)) try {
+		existing = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+	} catch {
+		existing = {};
+	}
+	const yamlSchemas = { [schemaRelativePath]: ["agentFlow/flows/*/.agentflow.yaml"] };
+	const updated = {
+		...existing,
+		"yaml.schemas": {
+			...existing["yaml.schemas"],
+			...yamlSchemas
+		}
+	};
+	fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 2), "utf8");
+	return settingsPath;
+}
+//#endregion
+//#region src/ide/zed.ts
+/**
+* Merges a file_associations entry into .zed/settings.json for the Zed editor.
+* Creates the file (and parent directory) if it does not exist.
+* Returns the absolute path to the settings file.
+*/
+function writeZedSettings(projectRoot, schemaRelativePath) {
+	const settingsPath = path.join(projectRoot, ".zed", "settings.json");
+	const settingsDir = path.dirname(settingsPath);
+	if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
+	let existing = {};
+	if (fs.existsSync(settingsPath)) try {
+		existing = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+	} catch {
+		existing = {};
+	}
+	const pattern = "**/agentFlow/flows/*/.agentflow.yaml";
+	const schemaPathForZed = schemaRelativePath.replace(/\\/g, "/");
+	const fileAssociations = { [pattern]: schemaPathForZed };
+	const updated = {
+		...existing,
+		file_associations: {
+			...existing.file_associations,
+			...fileAssociations
+		}
+	};
+	fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 2), "utf8");
+	return settingsPath;
+}
+//#endregion
+//#region src/templates/config.yaml
+var config_default = "defaultFlow: plan";
+//#endregion
+//#region src/commands/init.ts
+/** Resolves the absolute path to the bundled flows directory (flows/ at package root). */
+function getBundledFlowsDir() {
+	const __filename = fileURLToPath(import.meta.url);
+	const candidates = [path.resolve(path.dirname(__filename), "..", "flows"), path.resolve(path.dirname(__filename), "..", "..", "flows")];
+	for (const candidate of candidates) if (fs.existsSync(candidate)) return candidate;
+	info("  Warning: Bundled flows directory not found — skipping flow copy.");
+	return "";
+}
+/** Resolves the absolute path to the bundled skill file (skills/agentflow/SKILL.md at package root). */
+function getBundledSkillFile() {
+	const __filename = fileURLToPath(import.meta.url);
+	const candidates = [path.resolve(path.dirname(__filename), "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME), path.resolve(path.dirname(__filename), "..", "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME)];
+	for (const candidate of candidates) if (fs.existsSync(candidate)) return candidate;
+	return candidates[candidates.length - 1] ?? "";
+}
+async function init() {
 	try {
-		stateCommand({ taskName: options.task });
+		const currentDir = process.cwd();
+		const mainFolderPath = path.join(currentDir, DEFAULT_ROOT_FOLDER_NAME);
+		const configFilePath = path.join(mainFolderPath, CONFIG_FILE_NAME);
+		banner();
+		initSection("Setting up project structure");
+		createFolder(mainFolderPath);
+		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/`);
+		writeFile(configFilePath, config_default);
+		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
+		createFolder(path.join(mainFolderPath, TASKS_FOLDER_NAME));
+		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
+		createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
+		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
+		initSection("Generating flow JSON schema");
+		const schemaDir = path.join(currentDir, "schema");
+		generateFlowSchema(path.join(schemaDir, SCHEMA_FILE_NAME));
+		initCreated(`schema/${SCHEMA_FILE_NAME}`);
+		let selectedFlows = [];
+		const bundledFlowsDir = getBundledFlowsDir();
+		if (bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
+			const bundledFlowNames = listDirs(bundledFlowsDir);
+			if (bundledFlowNames.length > 0) {
+				initSection("Bundled flows");
+				selectedFlows = await checkbox({
+					message: "Select flows to copy into your project:",
+					choices: bundledFlowNames.map((name) => ({
+						name,
+						value: name,
+						checked: true
+					}))
+				});
+				if (selectedFlows.length > 0) for (const flowName of selectedFlows) {
+					copyDirRecursive(path.join(bundledFlowsDir, flowName), path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName));
+					initCreated(`flows/${flowName}/`);
+				}
+				else initSkipped("No flows selected");
+			}
+		}
+		initSection("IDE integration");
+		const schemaRelativePath = `schema/${SCHEMA_FILE_NAME}`;
+		const ideChoice = await select({
+			message: "Select your IDE for YAML schema support:",
+			choices: [
+				{
+					name: "VS Code",
+					value: "vscode"
+				},
+				{
+					name: "JetBrains (IntelliJ, WebStorm, etc.)",
+					value: "jetbrains"
+				},
+				{
+					name: "Zed",
+					value: "zed"
+				},
+				{
+					name: "None / skip",
+					value: "none"
+				}
+			]
+		});
+		if (ideChoice === "vscode") {
+			const settingsPath = writeVsCodeSettings(currentDir, schemaRelativePath);
+			initCreated(path.relative(currentDir, settingsPath));
+		} else if (ideChoice === "jetbrains") {
+			const xmlPath = writeJetBrainsSchema(currentDir, schemaRelativePath);
+			initCreated(path.relative(currentDir, xmlPath));
+		} else if (ideChoice === "zed") {
+			const settingsPath = writeZedSettings(currentDir, schemaRelativePath);
+			initCreated(path.relative(currentDir, settingsPath));
+		} else initSkipped("IDE configuration skipped");
+		initSection("AI tool integration");
+		const aiToolChoice = await select({
+			message: "Select your AI tool to inject the agentflow skill:",
+			choices: [
+				{
+					name: "Claude Code",
+					value: "claude-code"
+				},
+				{
+					name: "Cursor",
+					value: "cursor"
+				},
+				{
+					name: "Windsurf",
+					value: "windsurf"
+				},
+				{
+					name: "None / skip",
+					value: "none"
+				}
+			]
+		});
+		if (aiToolChoice !== "none") {
+			const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
+			if (toolRoot !== void 0) {
+				const bundledSkillFile = getBundledSkillFile();
+				if (fileExists(bundledSkillFile)) {
+					const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, SKILL_NAME);
+					const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
+					createFolder(skillDestDir);
+					fs.copyFileSync(bundledSkillFile, skillDestPath);
+					initCreated(path.relative(currentDir, skillDestPath));
+				} else initWarning("Bundled skill file not found — skipping");
+				if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
+					const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
+					for (const flowName of selectedFlows) {
+						const agentsSrcDir = path.join(bundledFlowsDir, flowName, AGENTS_FOLDER_NAME);
+						if (fileExists(agentsSrcDir)) {
+							createFolder(agentsDestDir);
+							for (const agentFile of fs.readdirSync(agentsSrcDir)) {
+								const agentSrc = path.join(agentsSrcDir, agentFile);
+								const agentDest = path.join(agentsDestDir, agentFile);
+								fs.copyFileSync(agentSrc, agentDest);
+								initCreated(path.relative(currentDir, agentDest));
+							}
+						}
+					}
+				}
+			}
+		} else initSkipped("AI tool integration skipped");
+		initSuccess();
 	} catch (err) {
 		error(err);
 		process.exit(1);
@@ -1244,54 +1116,47 @@ async function listTasksCommandHandler() {
 	}
 }
 //#endregion
-//#region src/commands/complete.ts
+//#region src/commands/next.ts
 /**
-* Core logic for completing a step.
-* Throws on invalid state (step not found, step not completable, etc.).
+* Core logic for the `agentflow next` command.
+* Determines the next step(s) to work on and outputs them.
+* Throws on invalid state.
 */
-function completeCommand(args) {
+function nextCommand(args) {
 	const projectRoot = args.projectRoot ?? process.cwd();
-	const { stepName, taskName } = args;
-	const { state: taskState, dir: taskDir } = resolveTask(projectRoot, taskName);
-	if (taskName !== void 0) setActiveTask(projectRoot, taskName);
+	const { name: taskName, state: taskState } = resolveTask(projectRoot, args.taskName);
+	if (args.taskName !== void 0) setActiveTask(projectRoot, args.taskName);
 	const flow = loadFlow(projectRoot, taskState.flow);
-	if (!flow.steps.some((s) => s.name === stepName)) throw new Error(`Step "${stepName}" not found in flow "${taskState.flow}".`);
-	const currentStepState = taskState.steps[stepName];
-	if (currentStepState === void 0 || currentStepState.state !== "ready" && currentStepState.state !== "revision") {
-		const currentState = currentStepState?.state ?? "unknown";
-		throw new Error(`Step "${stepName}" is not in a completable state (current state: ${currentState}).`);
+	if (isTaskComplete(taskState.steps)) {
+		taskComplete(taskName);
+		return;
 	}
-	const doneStep = currentStepState.revisionCount !== void 0 ? {
-		state: "done",
-		revisionCount: currentStepState.revisionCount
-	} : { state: "done" };
-	const updatedSteps = {
-		...taskState.steps,
-		[stepName]: doneStep
-	};
-	const unblocked = resolveUnblockedSteps(flow.steps, updatedSteps, stepName);
-	for (const name of unblocked) {
-		const s = updatedSteps[name];
-		if (s !== void 0) updatedSteps[name] = {
-			...s,
-			state: "ready"
-		};
+	const readyStepNames = resolveReadySteps(flow.steps, taskState.steps);
+	if (readyStepNames.length === 0) throw new Error(`No ready steps found for task "${taskName}".`);
+	if (args.parallel) nextParallel(readyStepNames.map((name) => {
+		const stepConfig = flow.steps.find((s) => s.name === name);
+		const subagent = stepConfig?.subagent === false ? void 0 : stepConfig?.subagent;
+		return subagent !== void 0 ? {
+			name,
+			subagent
+		} : { name };
+	}), taskName);
+	else {
+		const firstStepName = readyStepNames[0];
+		if (firstStepName === void 0) throw new Error(`No ready steps found for task "${taskName}".`);
+		const stepConfig = flow.steps.find((s) => s.name === firstStepName);
+		nextStep(firstStepName, stepConfig?.subagent === false ? void 0 : stepConfig?.subagent, taskName);
 	}
-	writeTaskState(taskDir, {
-		...taskState,
-		steps: updatedSteps
-	});
-	stepComplete(stepName, unblocked);
 }
 /**
-* CLI command handler for `agentflow complete`.
-* Parses args from commander, calls completeCommand, exits on error.
+* CLI command handler for `agentflow next`.
+* Parses args from commander, calls nextCommand, exits on error.
 */
-async function completeCommandHandler(options) {
+async function nextCommandHandler(options) {
 	try {
-		completeCommand({
-			stepName: options.step,
-			taskName: options.task
+		nextCommand({
+			...options.task !== void 0 && { taskName: options.task },
+			...options.parallel !== void 0 && { parallel: options.parallel }
 		});
 	} catch (err) {
 		error(err);
@@ -1354,8 +1219,144 @@ async function reviseCommandHandler(options) {
 		reviseCommand({
 			stepName: options.step,
 			fromStep: options.from,
-			taskName: options.task
+			...options.task !== void 0 && { taskName: options.task }
 		});
+	} catch (err) {
+		error(err);
+		process.exit(1);
+	}
+}
+//#endregion
+//#region src/commands/start.ts
+/**
+* Core logic for starting a new task.
+* Throws on invalid state (task already exists, flow not found, etc.).
+*/
+function startCommand(args) {
+	const projectRoot = args.projectRoot ?? process.cwd();
+	const { taskName } = args;
+	const taskDir = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName);
+	if (fileExists(taskDir)) throw new Error(`Task "${taskName}" already exists.`);
+	const flowName = resolveFlowName(projectRoot, args.flowName);
+	const initialSteps = getInitialStepStates(loadFlow(projectRoot, flowName).steps);
+	const taskState = {
+		active: true,
+		flow: flowName,
+		steps: initialSteps
+	};
+	createFolder(taskDir);
+	writeTaskState(taskDir, taskState);
+	setActiveTask(projectRoot, taskName);
+	taskStarted(taskName, flowName, Object.entries(initialSteps).filter(([, s]) => s.state === "ready").map(([name]) => name));
+}
+/**
+* CLI command handler for `agentflow start`.
+* Parses args from commander, calls startCommand, exits on error.
+*/
+async function startCommandHandler(options) {
+	try {
+		startCommand({
+			taskName: options.task,
+			...options.flow !== void 0 && { flowName: options.flow }
+		});
+	} catch (err) {
+		error(err);
+		process.exit(1);
+	}
+}
+//#endregion
+//#region src/commands/state.ts
+/**
+* Core logic for the `state` command.
+* Resolves the task (active or named), loads its flow config,
+* and prints each step's status with generates/requires details.
+* Throws on error.
+*/
+function stateCommand(args) {
+	const projectRoot = args.projectRoot ?? process.cwd();
+	const { name: taskName, state: taskState$1 } = resolveTask(projectRoot, args.taskName);
+	if (args.taskName !== void 0) setActiveTask(projectRoot, args.taskName);
+	const steps = loadFlow(projectRoot, taskState$1.flow).steps.map((stepConfig) => {
+		const state = taskState$1.steps[stepConfig.name]?.state ?? "blocked";
+		const entry = {
+			name: stepConfig.name,
+			state
+		};
+		if (stepConfig.generates) {
+			const generatePath = path.join(TASKS_FOLDER_NAME, taskName, stepConfig.generates);
+			const absoluteGeneratePath = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, stepConfig.generates);
+			entry.generates = stepConfig.generates;
+			entry.generatePath = generatePath;
+			entry.fileExists = fileExists(absoluteGeneratePath);
+		} else if (state === "blocked") entry.requires = stepConfig.requires ?? [];
+		return entry;
+	});
+	taskState({
+		taskName,
+		flowName: taskState$1.flow,
+		active: taskState$1.active,
+		steps
+	});
+}
+/**
+* CLI command handler for `agentflow state`.
+*/
+async function stateCommandHandler(options) {
+	try {
+		stateCommand({ ...options.task !== void 0 && { taskName: options.task } });
+	} catch (err) {
+		error(err);
+		process.exit(1);
+	}
+}
+//#endregion
+//#region src/commands/validate.ts
+async function validateCommand(options) {
+	const projectRoot = process.cwd();
+	try {
+		if (options.flow !== void 0) {
+			const flowName = options.flow;
+			const result = validateFlow(loadFlow(projectRoot, flowName), listInstructionFiles(projectRoot, flowName));
+			if (result.valid) validationPassed(`flow: ${flowName}`);
+			else {
+				validationFailed(`flow: ${flowName}`, result.errors);
+				process.exit(1);
+			}
+		} else {
+			let rootValid = true;
+			try {
+				loadRootConfig(projectRoot);
+			} catch {
+				rootValid = false;
+			}
+			const flowsFolderExists = fileExists(path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, FLOWS_FOLDER_NAME));
+			const tasksFolderExists = fileExists(path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME));
+			const flowNames = listFlowNames(projectRoot);
+			const flows = [];
+			for (const flowName of flowNames) try {
+				const flow = loadFlow(projectRoot, flowName);
+				const instructionPaths = listInstructionFiles(projectRoot, flowName);
+				flows.push({
+					flow,
+					instructionPaths
+				});
+			} catch (err) {
+				flows.push({
+					flow: {
+						name: flowName,
+						steps: []
+					},
+					instructionPaths: [],
+					loadError: err instanceof Error ? err.message : String(err)
+				});
+			}
+			const result = validateProject(rootValid, flowsFolderExists, tasksFolderExists, flows);
+			if (result.valid) validationPassed("project");
+			else {
+				validationFailed("project", result.errors);
+				process.exit(1);
+			}
+		}
 	} catch (err) {
 		error(err);
 		process.exit(1);
