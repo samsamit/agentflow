@@ -13,6 +13,84 @@ function writeErr(text: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// ANSI helpers
+// ---------------------------------------------------------------------------
+
+const c = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  // foreground
+  cyan: "\x1b[36m",
+  blue: "\x1b[34m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  magenta: "\x1b[35m",
+  white: "\x1b[37m",
+  gray: "\x1b[90m",
+  // bright
+  brightCyan: "\x1b[96m",
+  brightWhite: "\x1b[97m",
+} as const;
+
+function styled(text: string, ...codes: string[]): string {
+  return `${codes.join("")}${text}${c.reset}`;
+}
+
+// ---------------------------------------------------------------------------
+// Banner
+// ---------------------------------------------------------------------------
+
+export function banner(): void {
+  const logo = [
+    "                          __    ____              ",
+    "  ____ _____ ____  ____  / /_  / __/ ____ _      __",
+    " / __ `/ __ `/ _ \\/ __ \\/ __/ / /_  / __ \\ | /| / /",
+    "/ /_/ / /_/ /  __/ / / / /_ / __/ / /_/ / |/ |/ / ",
+    "\\__,_/\\__, /\\___/_/ /_/\\__//_/    \\____/|__/|__/  ",
+    "     /____/                                        ",
+  ];
+
+  write("");
+  for (const line of logo) {
+    write(styled(line, c.bold, c.brightCyan));
+  }
+  write(styled("  agent-first workflow engine", c.dim, c.cyan));
+  write("");
+}
+
+// ---------------------------------------------------------------------------
+// Init-specific output
+// ---------------------------------------------------------------------------
+
+export function initSection(title: string): void {
+  write("");
+  write(styled(`  ${title}`, c.bold, c.brightWhite));
+  write(styled("  " + "─".repeat(44), c.gray));
+}
+
+export function initCreated(label: string): void {
+  write(`  ${styled("✓", c.green, c.bold)}  ${styled(label, c.white)}`);
+}
+
+export function initSkipped(label: string): void {
+  write(`  ${styled("–", c.gray)}  ${styled(label, c.dim, c.gray)}`);
+}
+
+export function initWarning(label: string): void {
+  write(`  ${styled("⚠", c.yellow, c.bold)}  ${styled(label, c.yellow)}`);
+}
+
+export function initSuccess(): void {
+  write("");
+  write(styled("  ────────────────────────────────────────────────", c.gray));
+  write(`  ${styled("✦", c.brightCyan, c.bold)}  ${styled("agentflow initialized successfully", c.bold, c.brightWhite)}`);
+  write(`     ${styled("Next:", c.dim, c.gray)} ${styled("agentflow validate", c.cyan)}`);
+  write(`     ${styled("Docs:", c.dim, c.gray)} ${styled("https://github.com/samsamit/agentflow#readme", c.dim, c.cyan)}`);
+  write("");
+}
+
+// ---------------------------------------------------------------------------
 // General info
 // ---------------------------------------------------------------------------
 

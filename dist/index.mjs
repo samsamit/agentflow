@@ -132,6 +132,59 @@ function write(text) {
 function writeErr(text) {
 	process.stderr.write(text + "\n");
 }
+const c = {
+	reset: "\x1B[0m",
+	bold: "\x1B[1m",
+	dim: "\x1B[2m",
+	cyan: "\x1B[36m",
+	blue: "\x1B[34m",
+	green: "\x1B[32m",
+	yellow: "\x1B[33m",
+	magenta: "\x1B[35m",
+	white: "\x1B[37m",
+	gray: "\x1B[90m",
+	brightCyan: "\x1B[96m",
+	brightWhite: "\x1B[97m"
+};
+function styled(text, ...codes) {
+	return `${codes.join("")}${text}${c.reset}`;
+}
+function banner() {
+	const logo = [
+		"                          __    ____              ",
+		"  ____ _____ ____  ____  / /_  / __/ ____ _      __",
+		" / __ `/ __ `/ _ \\/ __ \\/ __/ / /_  / __ \\ | /| / /",
+		"/ /_/ / /_/ /  __/ / / / /_ / __/ / /_/ / |/ |/ / ",
+		"\\__,_/\\__, /\\___/_/ /_/\\__//_/    \\____/|__/|__/  ",
+		"     /____/                                        "
+	];
+	write("");
+	for (const line of logo) write(styled(line, c.bold, c.brightCyan));
+	write(styled("  agent-first workflow engine", c.dim, c.cyan));
+	write("");
+}
+function initSection(title) {
+	write("");
+	write(styled(`  ${title}`, c.bold, c.brightWhite));
+	write(styled("  " + "─".repeat(44), c.gray));
+}
+function initCreated(label) {
+	write(`  ${styled("✓", c.green, c.bold)}  ${styled(label, c.white)}`);
+}
+function initSkipped(label) {
+	write(`  ${styled("–", c.gray)}  ${styled(label, c.dim, c.gray)}`);
+}
+function initWarning(label) {
+	write(`  ${styled("⚠", c.yellow, c.bold)}  ${styled(label, c.yellow)}`);
+}
+function initSuccess() {
+	write("");
+	write(styled("  ────────────────────────────────────────────────", c.gray));
+	write(`  ${styled("✦", c.brightCyan, c.bold)}  ${styled("agentflow initialized successfully", c.bold, c.brightWhite)}`);
+	write(`     ${styled("Next:", c.dim, c.gray)} ${styled("agentflow validate", c.cyan)}`);
+	write(`     ${styled("Docs:", c.dim, c.gray)} ${styled("https://github.com/samsamit/agentflow#readme", c.dim, c.cyan)}`);
+	write("");
+}
 function info(message) {
 	write(message);
 }
@@ -319,48 +372,45 @@ async function init() {
 		const currentDir = process.cwd();
 		const mainFolderPath = path.join(currentDir, DEFAULT_ROOT_FOLDER_NAME);
 		const configFilePath = path.join(mainFolderPath, CONFIG_FILE_NAME);
-		info("Initializing agentflow project...");
-		info("Creating directory structure...");
+		banner();
+		initSection("Setting up project structure");
 		createFolder(mainFolderPath);
-		info(`  Created: ${DEFAULT_ROOT_FOLDER_NAME}/`);
+		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/`);
 		writeFile(configFilePath, config_default);
-		info(`  Created: ${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
+		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
 		createFolder(path.join(mainFolderPath, TASKS_FOLDER_NAME));
-		info(`  Created: ${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
+		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
 		createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
-		info(`  Created: ${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
+		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
+		initSection("Generating flow JSON schema");
 		const schemaDir = path.join(currentDir, "schema");
-		const schemaOutputPath = path.join(schemaDir, SCHEMA_FILE_NAME);
-		info("Generating flow JSON schema...");
-		generateFlowSchema(schemaOutputPath);
-		info(`  Generated: schema/${SCHEMA_FILE_NAME}`);
+		generateFlowSchema(path.join(schemaDir, SCHEMA_FILE_NAME));
+		initCreated(`schema/${SCHEMA_FILE_NAME}`);
 		let selectedFlows = [];
 		const bundledFlowsDir = getBundledFlowsDir();
 		if (bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
 			const bundledFlowNames = listDirs(bundledFlowsDir);
 			if (bundledFlowNames.length > 0) {
-				info("");
+				initSection("Bundled flows");
 				selectedFlows = await checkbox({
-					message: "Select bundled flows to copy into your project:",
+					message: "Select flows to copy into your project:",
 					choices: bundledFlowNames.map((name) => ({
 						name,
 						value: name,
 						checked: true
 					}))
 				});
-				if (selectedFlows.length > 0) {
-					info("Copying bundled flows...");
-					for (const flowName of selectedFlows) {
-						copyDirRecursive(path.join(bundledFlowsDir, flowName), path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName));
-						info(`  Copied flow: ${flowName}`);
-					}
-				} else info("No bundled flows selected — skipping.");
+				if (selectedFlows.length > 0) for (const flowName of selectedFlows) {
+					copyDirRecursive(path.join(bundledFlowsDir, flowName), path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName));
+					initCreated(`flows/${flowName}/`);
+				}
+				else initSkipped("No flows selected");
 			}
 		}
-		info("");
+		initSection("IDE integration");
 		const schemaRelativePath = `schema/${SCHEMA_FILE_NAME}`;
 		const ideChoice = await select({
-			message: "Select your IDE to configure YAML schema support:",
+			message: "Select your IDE for YAML schema support:",
 			choices: [
 				{
 					name: "VS Code",
@@ -382,17 +432,17 @@ async function init() {
 		});
 		if (ideChoice === "vscode") {
 			const settingsPath = writeVsCodeSettings(currentDir, schemaRelativePath);
-			info(`  VS Code settings updated: ${path.relative(currentDir, settingsPath)}`);
+			initCreated(path.relative(currentDir, settingsPath));
 		} else if (ideChoice === "jetbrains") {
 			const xmlPath = writeJetBrainsSchema(currentDir, schemaRelativePath);
-			info(`  JetBrains schema config written: ${path.relative(currentDir, xmlPath)}`);
+			initCreated(path.relative(currentDir, xmlPath));
 		} else if (ideChoice === "zed") {
 			const settingsPath = writeZedSettings(currentDir, schemaRelativePath);
-			info(`  Zed settings updated: ${path.relative(currentDir, settingsPath)}`);
-		} else info("  Skipped IDE configuration.");
-		info("");
+			initCreated(path.relative(currentDir, settingsPath));
+		} else initSkipped("IDE configuration skipped");
+		initSection("AI tool integration");
 		const aiToolChoice = await select({
-			message: "Select your AI tool to inject the agentflow skill and agents:",
+			message: "Select your AI tool to inject the agentflow skill:",
 			choices: [
 				{
 					name: "Claude Code",
@@ -421,33 +471,26 @@ async function init() {
 					const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
 					createFolder(skillDestDir);
 					fs.copyFileSync(bundledSkillFile, skillDestPath);
-					info(`  Skill injected: ${path.relative(currentDir, skillDestPath)}`);
-				} else info("  Bundled skill file not found — skipping.");
+					initCreated(path.relative(currentDir, skillDestPath));
+				} else initWarning("Bundled skill file not found — skipping");
 				if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
 					const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
-					let agentHeaderPrinted = false;
 					for (const flowName of selectedFlows) {
 						const agentsSrcDir = path.join(bundledFlowsDir, flowName, AGENTS_FOLDER_NAME);
 						if (fileExists(agentsSrcDir)) {
-							if (!agentHeaderPrinted) {
-								info("Installing flow agents...");
-								agentHeaderPrinted = true;
-							}
 							createFolder(agentsDestDir);
 							for (const agentFile of fs.readdirSync(agentsSrcDir)) {
 								const agentSrc = path.join(agentsSrcDir, agentFile);
 								const agentDest = path.join(agentsDestDir, agentFile);
 								fs.copyFileSync(agentSrc, agentDest);
-								info(`  Installed agent: ${path.relative(currentDir, agentDest)}`);
+								initCreated(path.relative(currentDir, agentDest));
 							}
 						}
 					}
 				}
 			}
-		} else info("  Skipped AI tool skill injection.");
-		info("");
-		info("agentflow initialized successfully.");
-		info(`Run: agentflow validate`);
+		} else initSkipped("AI tool integration skipped");
+		initSuccess();
 	} catch (err) {
 		error(err);
 		process.exit(1);
