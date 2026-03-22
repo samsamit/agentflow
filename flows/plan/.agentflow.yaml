@@ -1,0 +1,65 @@
+name: plan
+description: Standard planning workflow
+maxRevisions: 3
+
+steps:
+  - name: research
+    description: Research the problem domain
+    required: true
+    requires: []
+    generates: research.md
+    generateStrategy: replace
+    subagent: false
+    context:
+      instructions: research.md
+      references: []
+      steps: []
+    validates: []
+
+  - name: plan
+    description: Create implementation plan
+    required: true
+    requires:
+      - research
+    generates: plan.md
+    generateStrategy: replace
+    context:
+      instructions: plan.md
+      steps:
+        - research
+    validates: []
+
+  - name: task-breakdown
+    description: Break plan into actionable tasks
+    required: true
+    requires:
+      - plan
+    generates: tasks.md
+    generateStrategy: replace
+    context:
+      instructions: task-breakdown.md
+      steps:
+        - plan
+
+  - name: implement
+    description: Implement according to tasks
+    requires:
+      - task-breakdown
+    context:
+      instructions: implement.md
+      steps:
+        - task-breakdown
+
+  - name: review
+    description: Review implementation
+    requires:
+      - implement
+    validates:
+      - research
+      - plan
+      - implement
+    context:
+      instructions: review.md
+      steps:
+        - plan
+        - implement

@@ -5,7 +5,7 @@
 
 ## What to build
 
-Implement `chainflow complete` and `chainflow revise`. These two commands drive the forward and backward movement of the workflow. The cascade logic that revise triggers belongs in `graph/` as pure functions.
+Implement `agentflow complete` and `agentflow revise`. These two commands drive the forward and backward movement of the workflow. The cascade logic that revise triggers belongs in `graph/` as pure functions.
 
 - Implement `src/commands/complete.ts`:
   - Accepts `--step <name>`.
@@ -28,15 +28,15 @@ Reference: `docs/prd.md` — Step Completion & Revision (49–56), Implementatio
 
 ## Acceptance criteria
 
-- [ ] `chainflow complete --step <name>` sets step to `done` and unblocks correct downstream steps
-- [ ] `chainflow complete` outputs unblocked steps and next command
-- [ ] `chainflow revise --step <name> --from <step>` sets step to `revision` and stores `revisedBy`
-- [ ] `revise` increments `revisionCount` and cascades reset to all transitive dependents
-- [ ] `revise` warns and makes no state changes when `maxRevisions` is reached
-- [ ] Revision count and remaining revisions are visible in revise output
-- [ ] Graph cascade functions are pure — no filesystem access
-- [ ] Unit tests cover all step state combinations for unblocking and cascade
-- [ ] Integration tests pass for complete and revise
+- [x] `agentflow complete --step <name>` sets step to `done` and unblocks correct downstream steps
+- [x] `agentflow complete` outputs unblocked steps and next command
+- [x] `agentflow revise --step <name> --from <step>` sets step to `revision` and stores `revisedBy`
+- [x] `revise` increments `revisionCount` and cascades reset to all transitive dependents
+- [x] `revise` warns and makes no state changes when `maxRevisions` is reached
+- [x] Revision count and remaining revisions are visible in revise output
+- [x] Graph cascade functions are pure — no filesystem access
+- [x] Unit tests cover all step state combinations for unblocking and cascade
+- [x] Integration tests pass for complete and revise
 
 ## Blocked by
 

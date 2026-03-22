@@ -5,7 +5,7 @@
 
 ## What to build
 
-Implement the `task/` domain module and the `chainflow start` command. This slice introduces task state — the per-task tracking file that all workflow navigation commands depend on.
+Implement the `task/` domain module and the `agentflow start` command. This slice introduces task state — the per-task tracking file that all workflow navigation commands depend on.
 
 - Define the task state Zod schema in `src/task/task.schema.ts` covering: task name, flow name, active flag, per-step state (status: `blocked`/`ready`/`done`/`revision`, revisionCount, revisedBy, generatedFile).
 - Implement `src/task/reader.ts` and `src/task/writer.ts`: read/write `.taskState.yaml` using the `yaml` package. Throw on failure.
@@ -24,15 +24,15 @@ Reference: `docs/prd.md` — Task Lifecycle (26–31), Implementation Decisions 
 
 ## Acceptance criteria
 
-- [ ] Task state Zod schema covers all fields
-- [ ] `loadTaskState()` / `writeTaskState()` round-trip correctly
-- [ ] `resolveActiveTask()` throws when no task is active
-- [ ] `chainflow start --task <name>` creates the task directory and `.taskState.yaml`
-- [ ] Steps with no `requires` initialise as `ready`; others as `blocked`
-- [ ] Starting a duplicate task name exits 1 with a clear error
-- [ ] The new task is set active; any previously active task is deactivated
-- [ ] `chainflow start` output ends with the exact next command to run
-- [ ] Unit + integration tests pass
+- [x] Task state Zod schema covers all fields
+- [x] `loadTaskState()` / `writeTaskState()` round-trip correctly
+- [x] `resolveActiveTask()` throws when no task is active
+- [x] `agentflow start --task <name>` creates the task directory and `.taskState.yaml`
+- [x] Steps with no `requires` initialise as `ready`; others as `blocked`
+- [x] Starting a duplicate task name exits 1 with a clear error
+- [x] The new task is set active; any previously active task is deactivated
+- [x] `agentflow start` output ends with the exact next command to run
+- [x] Unit + integration tests pass
 
 ## Blocked by
 

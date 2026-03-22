@@ -5,7 +5,11 @@
       "Bash(tree -L 3 /c/Users/samut/Documents/PROJECTS/agent-chain-flow --ignore node_modules)",
       "Bash(find /c/Users/samut/Documents/PROJECTS/agent-chain-flow -not -path */node_modules* -not -path */.git* -type f)",
       "Bash(gh auth:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npm run:*)",
+      "WebSearch",
+      "Bash(npm show:*)"
     ]
   }
 }

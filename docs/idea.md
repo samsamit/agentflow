@@ -27,7 +27,7 @@ Task structure:
             - state: ready | done | blocked | revision
 
 Flow structure:
-1. chainflow.yaml
+1. agentflow.yaml
     - The flow config that describes the flow
     - Has flow level fields
     - Has steps

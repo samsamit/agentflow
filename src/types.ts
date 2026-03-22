@@ -1,3 +1,1 @@
-export type Try<TExtend> = {
-    success: boolean;
-} & TExtend;
+// Shared TypeScript types — populated by later implementation slices

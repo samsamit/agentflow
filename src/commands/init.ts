@@ -1,27 +1,197 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { CONFIG_FILE_NAME, DEFAULT_ROOT_FOLDER_NAME, FLOWS_FOLDER_NAME, TASKS_FOLDER_NAME } from '../constants.js';
-import { createFile, createFolder, writeFile } from '../utils/fileIo.js';
+import { checkbox, select } from "@inquirer/prompts";
+import { fileURLToPath } from "url";
+import * as fs from "fs";
+import * as path from "path";
+import {
+  AGENTS_FOLDER_NAME,
+  AI_TOOL_ROOTS,
+  CONFIG_FILE_NAME,
+  DEFAULT_ROOT_FOLDER_NAME,
+  FLOWS_FOLDER_NAME,
+  SCHEMA_FILE_NAME,
+  SKILL_FILE_NAME,
+  SKILL_NAME,
+  SKILLS_FOLDER_NAME,
+  TASKS_FOLDER_NAME,
+} from "../constants.js";
+import { writeJetBrainsSchema } from "../ide/jetbrains.js";
+import { writeVsCodeSettings } from "../ide/vscode.js";
+import { writeZedSettings } from "../ide/zed.js";
+import * as output from "../output.js";
+import { generateFlowSchema } from "../schema/index.js";
+import { copyDirRecursive, createFolder, fileExists, listDirs, writeFile } from "../utils/fileIo.js";
 import configTemplate from "../templates/config.yaml";
 
+/** Resolves the absolute path to the bundled flows directory (flows/ at package root). */
+function getBundledFlowsDir(): string {
+  const __filename = fileURLToPath(import.meta.url);
+  // In built output: dist/index.mjs → project root is one level up
+  // In dev/test: src/commands/init.ts → project root is two levels up
+  // We detect by checking whether the resolved path contains a `flows/` dir
+  const candidates = [
+    path.resolve(path.dirname(__filename), "..", "flows"),
+    path.resolve(path.dirname(__filename), "..", "..", "flows"),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  output.info("  Warning: Bundled flows directory not found — skipping flow copy.");
+  return "";
+}
+
+/** Resolves the absolute path to the bundled skill file (skills/agentflow/SKILL.md at package root). */
+function getBundledSkillFile(): string {
+  const __filename = fileURLToPath(import.meta.url);
+  const candidates = [
+    path.resolve(path.dirname(__filename), "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME),
+    path.resolve(path.dirname(__filename), "..", "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return candidates[candidates.length - 1] ?? "";
+}
+
 export async function init() {
+  try {
     const currentDir = process.cwd();
     const mainFolderPath = path.join(currentDir, DEFAULT_ROOT_FOLDER_NAME);
     const configFilePath = path.join(mainFolderPath, CONFIG_FILE_NAME);
 
-    console.log("Initializing project...");
-    console.log(`- Creating main folder`);
-    await createFolder(mainFolderPath);
+    output.info("Initializing agentflow project...");
 
-    console.log(`- Adding config file`);
-    await writeFile(
-        configFilePath,
-        configTemplate
-    );
+    // --- Directory structure ---
+    output.info("Creating directory structure...");
+    createFolder(mainFolderPath);
+    output.info(`  Created: ${DEFAULT_ROOT_FOLDER_NAME}/`);
 
-    console.log("- Adding tasks folder");
-    await createFolder(path.join(mainFolderPath, TASKS_FOLDER_NAME));
+    writeFile(configFilePath, configTemplate);
+    output.info(`  Created: ${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
 
-    console.log("- Adding flows folder");
-    await createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
+    createFolder(path.join(mainFolderPath, TASKS_FOLDER_NAME));
+    output.info(`  Created: ${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
+
+    createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
+    output.info(`  Created: ${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
+
+    // --- Generate JSON schema ---
+    const schemaDir = path.join(currentDir, "schema");
+    const schemaOutputPath = path.join(schemaDir, SCHEMA_FILE_NAME);
+    output.info("Generating flow JSON schema...");
+    generateFlowSchema(schemaOutputPath);
+    output.info(`  Generated: schema/${SCHEMA_FILE_NAME}`);
+
+    // --- Copy bundled flows ---
+    let selectedFlows: string[] = [];
+    const bundledFlowsDir = getBundledFlowsDir();
+    if (bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
+      const bundledFlowNames = listDirs(bundledFlowsDir);
+      if (bundledFlowNames.length > 0) {
+        output.info("");
+        selectedFlows = await checkbox<string>({
+          message: "Select bundled flows to copy into your project:",
+          choices: bundledFlowNames.map((name) => ({ name, value: name, checked: true })),
+        });
+
+        if (selectedFlows.length > 0) {
+          output.info("Copying bundled flows...");
+          for (const flowName of selectedFlows) {
+            const src = path.join(bundledFlowsDir, flowName);
+            const dest = path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName);
+            copyDirRecursive(src, dest);
+            output.info(`  Copied flow: ${flowName}`);
+          }
+        } else {
+          output.info("No bundled flows selected — skipping.");
+        }
+      }
+    }
+
+    // --- IDE config ---
+    output.info("");
+    const schemaRelativePath = `schema/${SCHEMA_FILE_NAME}`;
+
+    const ideChoice = await select<string>({
+      message: "Select your IDE to configure YAML schema support:",
+      choices: [
+        { name: "VS Code", value: "vscode" },
+        { name: "JetBrains (IntelliJ, WebStorm, etc.)", value: "jetbrains" },
+        { name: "Zed", value: "zed" },
+        { name: "None / skip", value: "none" },
+      ],
+    });
+
+    if (ideChoice === "vscode") {
+      const settingsPath = writeVsCodeSettings(currentDir, schemaRelativePath);
+      output.info(`  VS Code settings updated: ${path.relative(currentDir, settingsPath)}`);
+    } else if (ideChoice === "jetbrains") {
+      const xmlPath = writeJetBrainsSchema(currentDir, schemaRelativePath);
+      output.info(`  JetBrains schema config written: ${path.relative(currentDir, xmlPath)}`);
+    } else if (ideChoice === "zed") {
+      const settingsPath = writeZedSettings(currentDir, schemaRelativePath);
+      output.info(`  Zed settings updated: ${path.relative(currentDir, settingsPath)}`);
+    } else {
+      output.info("  Skipped IDE configuration.");
+    }
+
+    // --- AI tool skill + agent injection ---
+    output.info("");
+    const aiToolChoice = await select<string>({
+      message: "Select your AI tool to inject the agentflow skill and agents:",
+      choices: [
+        { name: "Claude Code", value: "claude-code" },
+        { name: "Cursor", value: "cursor" },
+        { name: "Windsurf", value: "windsurf" },
+        { name: "None / skip", value: "none" },
+      ],
+    });
+
+    if (aiToolChoice !== "none") {
+      const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
+      if (toolRoot !== undefined) {
+        // Skill injection
+        const bundledSkillFile = getBundledSkillFile();
+        if (fileExists(bundledSkillFile)) {
+          const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, SKILL_NAME);
+          const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
+          createFolder(skillDestDir);
+          fs.copyFileSync(bundledSkillFile, skillDestPath);
+          output.info(`  Skill injected: ${path.relative(currentDir, skillDestPath)}`);
+        } else {
+          output.info("  Bundled skill file not found — skipping.");
+        }
+
+        // Agent injection — install agent files bundled with each selected flow
+        if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
+          const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
+          let agentHeaderPrinted = false;
+          for (const flowName of selectedFlows) {
+            const agentsSrcDir = path.join(bundledFlowsDir, flowName, AGENTS_FOLDER_NAME);
+            if (fileExists(agentsSrcDir)) {
+              if (!agentHeaderPrinted) {
+                output.info("Installing flow agents...");
+                agentHeaderPrinted = true;
+              }
+              createFolder(agentsDestDir);
+              for (const agentFile of fs.readdirSync(agentsSrcDir)) {
+                const agentSrc = path.join(agentsSrcDir, agentFile);
+                const agentDest = path.join(agentsDestDir, agentFile);
+                fs.copyFileSync(agentSrc, agentDest);
+                output.info(`  Installed agent: ${path.relative(currentDir, agentDest)}`);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      output.info("  Skipped AI tool skill injection.");
+    }
+
+    output.info("");
+    output.info("agentflow initialized successfully.");
+    output.info(`Run: agentflow validate`);
+  } catch (err) {
+    output.error(err);
+    process.exit(1);
+  }
 }

@@ -1,0 +1,230 @@
+/**
+ * All stdout/stderr output for agentflow CLI.
+ * Every output function in this module writes directly to process.stdout or process.stderr.
+ * No console.log or console.error is used anywhere else in the codebase.
+ */
+
+function write(text: string): void {
+  process.stdout.write(text + "\n");
+}
+
+function writeErr(text: string): void {
+  process.stderr.write(text + "\n");
+}
+
+// ---------------------------------------------------------------------------
+// General info
+// ---------------------------------------------------------------------------
+
+export function info(message: string): void {
+  write(message);
+}
+
+// ---------------------------------------------------------------------------
+// Task lifecycle
+// ---------------------------------------------------------------------------
+
+export function taskStarted(taskName: string, flowName: string, activeSteps: string[]): void {
+  write(`Task started: ${taskName}`);
+  write(`Flow: ${flowName}`);
+  write(`Active steps: ${activeSteps.join(", ")}`);
+  write("Run: agentflow next");
+}
+
+export function taskComplete(taskName: string): void {
+  write(`Task complete: ${taskName}`);
+  write("All steps are done.");
+}
+
+// ---------------------------------------------------------------------------
+// Next step
+// ---------------------------------------------------------------------------
+
+/** subagent: undefined = no subagent, true = generic, string = named */
+export function nextStep(
+  stepName: string,
+  subagent?: string | true,
+  taskName?: string,
+): void {
+  write(`Step: ${stepName}`);
+  write("Status: ready");
+  if (subagent === undefined) {
+    write(`Run: agentflow context --step ${stepName}`);
+  } else if (subagent === true) {
+    write("Subagent: spawn a subagent");
+    write(`Then run: agentflow context --step ${stepName} --task ${taskName}`);
+  } else {
+    write(`Subagent: spawn subagent "${subagent}"`);
+    write(`Then run: agentflow context --step ${stepName} --task ${taskName}`);
+  }
+}
+
+export type ParallelStep = {
+  name: string;
+  subagent?: string | true;
+};
+
+export function nextParallel(steps: ParallelStep[], taskName?: string): void {
+  const hasSubagents = steps.some((s) => s.subagent !== undefined);
+
+  if (!hasSubagents) {
+    write("Steps ready for parallel execution:");
+    for (const step of steps) {
+      write(`- ${step.name}: run agentflow context --step ${step.name}`);
+    }
+  } else {
+    write("Steps ready for parallel execution. Spawn a subagent for each step below:");
+    for (const step of steps) {
+      if (typeof step.subagent === "string") {
+        write(
+          `- ${step.name}: spawn subagent "${step.subagent}", then run agentflow context --step ${step.name} --task ${taskName}`,
+        );
+      } else if (step.subagent === true) {
+        write(
+          `- ${step.name}: spawn a subagent, then run agentflow context --step ${step.name} --task ${taskName}`,
+        );
+      } else {
+        write(`- ${step.name}: run agentflow context --step ${step.name}`);
+      }
+    }
+    write("Run all subagents in parallel before proceeding.");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Step operations
+// ---------------------------------------------------------------------------
+
+export function stepContext(content: string): void {
+  write(content);
+}
+
+export function stepComplete(stepName: string, unblocked: string[]): void {
+  write(`Step complete: ${stepName}`);
+  if (unblocked.length > 0) {
+    write(`Unblocked: ${unblocked.join(", ")}`);
+  }
+  write("Run: agentflow next");
+}
+
+export function stepRevised(
+  stepName: string,
+  revisionCount: number,
+  maxRevisions: number,
+  cascaded: string[],
+): void {
+  write(`Step marked for revision: ${stepName} (revision ${revisionCount}/${maxRevisions})`);
+  write(`Cascaded to ready: ${cascaded.join(", ")}`);
+  write("Run: agentflow next");
+}
+
+export function revisionIgnored(stepName: string, maxRevisions: number): void {
+  write(
+    `Warning: Step "${stepName}" has reached the maximum number of revisions (${maxRevisions}/${maxRevisions}). Revision ignored.`,
+  );
+  write("Run: agentflow next");
+}
+
+// ---------------------------------------------------------------------------
+// State / list
+// ---------------------------------------------------------------------------
+
+export type StepStateEntry = {
+  name: string;
+  state: "ready" | "done" | "blocked" | "revision";
+  generates?: string;
+  generatePath?: string;
+  fileExists?: boolean;
+  requires?: string[];
+};
+
+export type TaskStateArgs = {
+  taskName: string;
+  flowName: string;
+  active: boolean;
+  steps: StepStateEntry[];
+};
+
+export function taskState(args: TaskStateArgs): void {
+  write(`Task: ${args.taskName}`);
+  write(`Flow: ${args.flowName}`);
+  write(`Active: ${args.active}`);
+  write("");
+  write("Steps:");
+  for (const step of args.steps) {
+    const namePad = step.name.padEnd(16);
+    const statePad = step.state.padEnd(12);
+    let detail = "";
+    if (step.generates && step.generatePath) {
+      const exists = step.fileExists ? "[exists]" : "[missing]";
+      detail = `generates: ${step.generates} → ${step.generatePath} ${exists}`;
+    } else if (step.requires && step.requires.length > 0) {
+      detail = `requires: ${step.requires.join(", ")}`;
+    }
+    write(`${namePad}${statePad}${detail}`.trimEnd());
+  }
+}
+
+export type FlowEntry = {
+  name: string;
+  description: string;
+};
+
+export function flowList(flows: FlowEntry[]): void {
+  write("Flows:");
+  for (const flow of flows) {
+    const namePad = flow.name.padEnd(12);
+    write(`${namePad}${flow.description}`);
+  }
+}
+
+export type TaskEntry = {
+  name: string;
+  active: boolean;
+  flowName: string;
+  doneSteps: number;
+  totalSteps: number;
+};
+
+export function taskList(tasks: TaskEntry[]): void {
+  write("Tasks:");
+  for (const task of tasks) {
+    const namePad = task.name.padEnd(14);
+    const activePart = task.active ? "(active)    " : "            ";
+    write(
+      `${namePad}${activePart}flow: ${task.flowName}    steps: ${task.doneSteps}/${task.totalSteps} done`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+export function validationPassed(target: string): void {
+  write(`Validation passed: ${target}`);
+}
+
+export function validationFailed(target: string, errors: string[]): void {
+  writeErr(`Validation failed: ${target}`);
+  for (const err of errors) {
+    writeErr(`  - ${err}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Errors
+// ---------------------------------------------------------------------------
+
+export function error(err: unknown): void {
+  if (err instanceof Error) {
+    writeErr(`Error: ${err.message}`);
+  } else {
+    writeErr(`Error: ${String(err)}`);
+  }
+}
+
+export function errorWithFix(message: string, fix: string): void {
+  writeErr(`Error: ${message}`);
+  writeErr(`Run: ${fix}`);
+}

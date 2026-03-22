@@ -8,7 +8,7 @@ AI agents performing multi-step tasks have no reliable way to track progress, en
 
 ## Solution
 
-`chainflow` is an agent-first CLI workflow engine. Developers define multi-step workflows (flows) in YAML files. An AI agent invokes `chainflow` commands to navigate the workflow — receiving injected context for each step, marking steps complete, triggering revisions, and always being told exactly what to run next. The engine enforces dependency order, cascades revisions to downstream steps, and injects all necessary context so the agent never needs to explore on its own.
+`agentflow` is an agent-first CLI workflow engine. Developers define multi-step workflows (flows) in YAML files. An AI agent invokes `agentflow` commands to navigate the workflow — receiving injected context for each step, marking steps complete, triggering revisions, and always being told exactly what to run next. The engine enforces dependency order, cascades revisions to downstream steps, and injects all necessary context so the agent never needs to explore on its own.
 
 ---
 
@@ -16,11 +16,11 @@ AI agents performing multi-step tasks have no reliable way to track progress, en
 
 ### Init & Setup
 
-1. As a developer, I want to run `chainflow init` and have the project structure created, so that I can start defining flows immediately.
-2. As a developer, I want `chainflow init` to describe what it is doing as it runs, so that I understand what was created.
-3. As a developer, I want `chainflow init` to prompt me to select my IDE (VS Code, JetBrains, Zed), so that YAML schema validation is configured automatically for my editor.
-4. As a developer, I want `chainflow init` to show me a list of bundled ready-made flows and let me select which ones to include, so that I can get started without writing flows from scratch.
-5. As a developer, I want selected bundled flows to be copied into my `chainFlow/flows/` directory on init, so that they are immediately usable.
+1. As a developer, I want to run `agentflow init` and have the project structure created, so that I can start defining flows immediately.
+2. As a developer, I want `agentflow init` to describe what it is doing as it runs, so that I understand what was created.
+3. As a developer, I want `agentflow init` to prompt me to select my IDE (VS Code, JetBrains, Zed), so that YAML schema validation is configured automatically for my editor.
+4. As a developer, I want `agentflow init` to show me a list of bundled ready-made flows and let me select which ones to include, so that I can get started without writing flows from scratch.
+5. As a developer, I want selected bundled flows to be copied into my `agentFlow/flows/` directory on init, so that they are immediately usable.
 6. As a developer, I want a `.vscode/settings.json` `yaml.schemas` entry written when I choose VS Code, so that my flow config files have full autocomplete and validation.
 7. As a developer, I want a `.idea/jsonSchemas.xml` entry written when I choose JetBrains, so that my flow config files have full autocomplete and validation.
 8. As a developer, I want a `.zed/settings.json` `file_associations` entry written when I choose Zed, so that my flow config files have full autocomplete and validation.
@@ -41,34 +41,34 @@ AI agents performing multi-step tasks have no reliable way to track progress, en
 
 ### Validation
 
-20. As a developer, I want to run `chainflow validate` to check the entire project structure, so that I catch configuration errors before starting a task.
-21. As a developer, I want `chainflow validate --flow <name>` to validate a single flow, so that I can iterate on flow design quickly.
+20. As a developer, I want to run `agentflow validate` to check the entire project structure, so that I catch configuration errors before starting a task.
+21. As a developer, I want `agentflow validate --flow <name>` to validate a single flow, so that I can iterate on flow design quickly.
 22. As a developer, I want validation to detect circular dependencies in `requires` chains, so that I can fix invalid flow graphs.
 23. As a developer, I want validation to report missing `instructions` files, so that I know before running a task that all instruction files are in place.
 24. As a developer, I want validation to verify that all `context.steps` and `validates` references point to real step names, so that typos are caught early.
-25. As an AI agent, I want to run `chainflow validate` before starting a task to confirm the flow is healthy, so that I don't proceed with a broken configuration.
+25. As an AI agent, I want to run `agentflow validate` before starting a task to confirm the flow is healthy, so that I don't proceed with a broken configuration.
 
 ### Task Lifecycle
 
-26. As a developer, I want to run `chainflow start --task <name>` to create a new task, so that the engine initialises state tracking for it.
+26. As a developer, I want to run `agentflow start --task <name>` to create a new task, so that the engine initialises state tracking for it.
 27. As a developer, I want `start` to error if a task with that name already exists, so that I don't accidentally overwrite task state.
 28. As a developer, I want `start` to accept `--flow <name>` to select a non-default flow, so that I can run different workflows for different task types.
 29. As a developer, I want `start` to tell me which steps are active and what to run next, so that I can hand off to an agent immediately.
-30. As an AI agent, I want `chainflow start` to set a task as active, so that I can omit `--task` on subsequent commands.
+30. As an AI agent, I want `agentflow start` to set a task as active, so that I can omit `--task` on subsequent commands.
 31. As an AI agent, I want any command that accepts `--task` to set that task as active when provided, so that I can switch context without extra commands.
 
 ### Workflow Navigation
 
-32. As an AI agent, I want to run `chainflow next` to find out which step to work on, so that I never have to reason about dependencies myself.
-33. As an AI agent, I want `chainflow next` to tell me the exact command to run next, so that I can proceed without ambiguity.
-34. As an AI agent, I want `chainflow next --parallel` to return all currently ready steps at once, so that I can execute them concurrently.
-35. As an AI agent, I want `chainflow next` to tell me to spawn a named or generic subagent when `subagent` is set on a step, so that I can delegate appropriately.
-36. As an AI agent, I want `chainflow next` to tell me the task is complete when all steps are done, so that I know to stop.
-37. As an AI agent, I want `chainflow next --task <name>` to switch the active task, so that I can manage multiple tasks in one session.
+32. As an AI agent, I want to run `agentflow next` to find out which step to work on, so that I never have to reason about dependencies myself.
+33. As an AI agent, I want `agentflow next` to tell me the exact command to run next, so that I can proceed without ambiguity.
+34. As an AI agent, I want `agentflow next --parallel` to return all currently ready steps at once, so that I can execute them concurrently.
+35. As an AI agent, I want `agentflow next` to tell me to spawn a named or generic subagent when `subagent` is set on a step, so that I can delegate appropriately.
+36. As an AI agent, I want `agentflow next` to tell me the task is complete when all steps are done, so that I know to stop.
+37. As an AI agent, I want `agentflow next --task <name>` to switch the active task, so that I can manage multiple tasks in one session.
 
 ### Context Delivery
 
-38. As an AI agent, I want to run `chainflow context --step <name>` to receive the full context for a step, so that I have everything I need to complete it without exploring the project myself.
+38. As an AI agent, I want to run `agentflow context --step <name>` to receive the full context for a step, so that I have everything I need to complete it without exploring the project myself.
 39. As an AI agent, I want the context to include the step's instruction file content, so that I know exactly what to do.
 40. As an AI agent, I want the context to inline reference files from the `references` list, so that I have relevant background material.
 41. As an AI agent, I want the context to inline the generated output of upstream `context.steps`, so that I can build on prior work.
@@ -78,14 +78,14 @@ AI agents performing multi-step tasks have no reliable way to track progress, en
 45. As an AI agent, I want the revision block to show me the previously generated output and the reviewer's generated file, so that I can rework the step with full context.
 46. As an AI agent, I want the context to show me validated step files first, then the generates instruction, then the evaluate+command sequence, so that I evaluate → produce → act in the right order.
 47. As an AI agent, I want the context to tell me what file to generate and which strategy to use (replace/update/version), so that I handle existing files correctly.
-48. As an AI agent, I want the context to end with the exact `chainflow complete` command to run, so that I always know how to close out the step.
+48. As an AI agent, I want the context to end with the exact `agentflow complete` command to run, so that I always know how to close out the step.
 
 ### Step Completion & Revision
 
-49. As an AI agent, I want to run `chainflow complete --step <name>` to mark a step done, so that downstream steps are unblocked.
-50. As an AI agent, I want `chainflow complete` to tell me which steps were unblocked, so that I understand the downstream impact.
-51. As an AI agent, I want `chainflow complete` to tell me the next command to run, so that I can continue the workflow immediately.
-52. As an AI agent, I want to run `chainflow revise --step <name> --from <step>` to mark a step for revision, so that prior work can be corrected based on a reviewer's output.
+49. As an AI agent, I want to run `agentflow complete --step <name>` to mark a step done, so that downstream steps are unblocked.
+50. As an AI agent, I want `agentflow complete` to tell me which steps were unblocked, so that I understand the downstream impact.
+51. As an AI agent, I want `agentflow complete` to tell me the next command to run, so that I can continue the workflow immediately.
+52. As an AI agent, I want to run `agentflow revise --step <name> --from <step>` to mark a step for revision, so that prior work can be corrected based on a reviewer's output.
 53. As an AI agent, I want `revise` to cascade the revision to all transitively dependent steps (setting them to `ready`), so that downstream steps are re-executed with updated upstream content.
 54. As an AI agent, I want `revise` to warn and do nothing when a step has reached `maxRevisions`, so that the workflow doesn't loop indefinitely.
 55. As an AI agent, I want the revision count to be visible in the revise output, so that I know how many revisions remain.
@@ -93,13 +93,13 @@ AI agents performing multi-step tasks have no reliable way to track progress, en
 
 ### Observability
 
-57. As a developer, I want to run `chainflow state` to see all step states for the active task, so that I can understand where the workflow is at a glance.
-58. As a developer, I want `chainflow state` to show each step's `generates` file path and whether it exists, so that I can diagnose missing outputs.
-59. As a developer, I want `chainflow state` to show `requires` dependencies for blocked steps, so that I understand what is blocking progress.
-60. As a developer, I want to run `chainflow list flows` to see all available flows, so that I can choose the right one for a task.
-61. As a developer, I want to run `chainflow list tasks` to see all tasks and their completion status, so that I can track work across multiple tasks.
+57. As a developer, I want to run `agentflow state` to see all step states for the active task, so that I can understand where the workflow is at a glance.
+58. As a developer, I want `agentflow state` to show each step's `generates` file path and whether it exists, so that I can diagnose missing outputs.
+59. As a developer, I want `agentflow state` to show `requires` dependencies for blocked steps, so that I understand what is blocking progress.
+60. As a developer, I want to run `agentflow list flows` to see all available flows, so that I can choose the right one for a task.
+61. As a developer, I want to run `agentflow list tasks` to see all tasks and their completion status, so that I can track work across multiple tasks.
 62. As a developer, I want `list tasks` to indicate which task is active, so that I know the current session context.
-63. As an AI agent, I want `chainflow state` to be runnable at any point to verify current state, so that I can self-diagnose before taking action.
+63. As an AI agent, I want `agentflow state` to be runnable at any point to verify current state, so that I can self-diagnose before taking action.
 
 ---
 
@@ -115,7 +115,7 @@ AI agents performing multi-step tasks have no reliable way to track progress, en
 
 **`graph/`** — Dependency graph builder, topological sort, circular dependency detection, step unblocking logic (which blocked steps become ready after a completion), transitive cascade logic (which steps become ready after a revision). Pure functions that accept parsed data and return results — no filesystem access.
 
-**`schema/`** — Generates `schema/chainflow-flow.schema.json` from the flow Zod schema at build time using `zod-to-json-schema`. Output is checked into the repo and shipped in the npm package.
+**`schema/`** — Generates `schema/agentflow-flow.schema.json` from the flow Zod schema at build time using `zod-to-json-schema`. Output is checked into the repo and shipped in the npm package.
 
 **`ide/`** — Three writers: VS Code (`yaml.schemas` in `.vscode/settings.json`), JetBrains (`.idea/jsonSchemas.xml`), Zed (`file_associations` in `.zed/settings.json`). Each writer receives the resolved schema path and writes the appropriate config. Since IDE writing is only triggered from `init`, this logic may live directly in the init command file rather than as a standalone module — the decision is left to implementation.
 
@@ -146,7 +146,7 @@ AI agents performing multi-step tasks have no reliable way to track progress, en
 - **Active task switching.** Any command that accepts `--task <name>` sets that task `active: true` and sets the previously active task to `active: false` before proceeding.
 - **`Try<T>` type deleted.** `fileIo.ts` refactored to throw on failure instead.
 - **Bundled flows** are shipped inside the npm package (in a `flows/` directory at package root) and copied to the user's project on init based on their selection.
-- **SchemaStore submission** is a one-time PR to the SchemaStore GitHub repository adding a `catalog-v1` entry pointing to `chainflow-flow.schema.json`. The submission follows SchemaStore's standard contribution guide.
+- **SchemaStore submission** is a one-time PR to the SchemaStore GitHub repository adding a `catalog-v1` entry pointing to `agentflow-flow.schema.json`. The submission follows SchemaStore's standard contribution guide.
 
 ### Context Command — `validates` Block Ordering
 
@@ -154,7 +154,7 @@ When a step has `validates` set, the context output order is:
 
 1. Validated step files (inlined content to evaluate)
 2. `generates` instruction (what file to produce, which strategy)
-3. Evaluation instruction: "Evaluate each step above, pass or fail. First run `chainflow complete`. Then for each failing step run `chainflow revise`."
+3. Evaluation instruction: "Evaluate each step above, pass or fail. First run `agentflow complete`. Then for each failing step run `agentflow revise`."
 4. Completion command
 
 This ordering ensures the agent reads input → knows its output → receives its action sequence, in a natural linear flow.
@@ -216,8 +216,8 @@ All implementation follows red-green-refactor: write a failing test first, imple
 - The actual SchemaStore PR content (it is a one-time manual submission)
 - Remote task sharing or multi-user collaboration
 - A web UI or dashboard
-- Any LLM integration within `chainflow` itself — it is purely a CLI tool that structures prompts for external agents
-- Claude Code skills mentioned in `docs/plan.md` ("skill that teaches agents how to use chainflow", "skill to scaffold a new flow interactively") — future work
+- Any LLM integration within `agentflow` itself — it is purely a CLI tool that structures prompts for external agents
+- Claude Code skills mentioned in `docs/plan.md` ("skill that teaches agents how to use agentflow", "skill to scaffold a new flow interactively") — future work
 
 ---
 

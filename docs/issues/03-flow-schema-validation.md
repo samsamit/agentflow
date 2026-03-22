@@ -5,7 +5,7 @@
 
 ## What to build
 
-Implement the `flow/` domain module and the `chainflow validate` command. This slice makes flow configs parseable and validates them before any task runs.
+Implement the `flow/` domain module and the `agentflow validate` command. This slice makes flow configs parseable and validates them before any task runs.
 
 - Define the flow config Zod schema in `src/flow/flow.schema.ts` covering: flow name, steps, `requires`, `generates`, `generateStrategy`, `context` (instructions, references, upstream steps), `validates`, `subagent`, `maxRevisions`, `required`.
 - Implement `src/flow/loader.ts`: reads a flow YAML file, parses it with the `yaml` package, validates with Zod, and returns a typed `FlowConfig`. Throws on invalid config.
@@ -17,15 +17,15 @@ Reference: `docs/prd.md` — Flow Configuration (11–19), Validation (20–25),
 
 ## Acceptance criteria
 
-- [ ] Flow Zod schema covers all fields specified in the PRD
-- [ ] `loadFlow()` parses valid YAML and returns typed `FlowConfig`
-- [ ] `loadFlow()` throws with a clear message on invalid/missing config
-- [ ] `validateFlow()` throws on circular `requires` chains
-- [ ] `validateFlow()` throws on missing `instructions` files
-- [ ] `validateFlow()` throws on unknown step references in `requires`, `context.steps`, `validates`
-- [ ] `chainflow validate` exits 0 on a valid project, exits 1 on failure with a clear error
-- [ ] `chainflow validate --flow <name>` validates only the named flow
-- [ ] Unit tests cover all validator error cases
+- [x] Flow Zod schema covers all fields specified in the PRD
+- [x] `loadFlow()` parses valid YAML and returns typed `FlowConfig`
+- [x] `loadFlow()` throws with a clear message on invalid/missing config
+- [x] `validateFlow()` throws on circular `requires` chains
+- [x] `validateFlow()` throws on missing `instructions` files
+- [x] `validateFlow()` throws on unknown step references in `requires`, `context.steps`, `validates`
+- [x] `agentflow validate` exits 0 on a valid project, exits 1 on failure with a clear error
+- [x] `agentflow validate --flow <name>` validates only the named flow
+- [x] Unit tests cover all validator error cases
 
 ## Blocked by
 

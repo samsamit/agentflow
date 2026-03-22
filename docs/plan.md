@@ -2,18 +2,18 @@
 
 ## Overview
 
-`chainflow` is an agent-first CLI workflow engine. It lets users define multi-step workflows (flows) and run tasks through them. An AI agent calls `chainflow` commands to navigate the workflow, get injected context for each step, and track progress. The tool enforces dependency order, cascades revisions downstream, and injects all necessary context so the agent never needs to explore on its own.
+`agentflow` is an agent-first CLI workflow engine. It lets users define multi-step workflows (flows) and run tasks through them. An AI agent calls `agentflow` commands to navigate the workflow, get injected context for each step, and track progress. The tool enforces dependency order, cascades revisions downstream, and injects all necessary context so the agent never needs to explore on its own.
 
 ---
 
 ## Directory Structure
 
 ```
-chainFlow/
-├── .chainflow.yaml              ← root config (defaultFlow name)
+agentFlow/
+├── .agentflow.yaml              ← root config (defaultFlow name)
 ├── flows/
 │   └── <flow-name>/
-│       ├── .chainflow.yaml      ← flow definition with steps
+│       ├── .agentflow.yaml      ← flow definition with steps
 │       └── instructions/
 │           └── <step-name>.md   ← instruction file per step
 └── tasks/
@@ -25,13 +25,13 @@ chainFlow/
 
 ## Configuration Schemas
 
-### Root config — `chainFlow/.chainflow.yaml`
+### Root config — `agentFlow/.agentflow.yaml`
 
 ```yaml
 defaultFlow: plan
 ```
 
-### Flow config — `chainFlow/flows/<name>/.chainflow.yaml`
+### Flow config — `agentFlow/flows/<name>/.agentflow.yaml`
 
 ```yaml
 name: plan
@@ -43,11 +43,11 @@ steps:
     description: Research the problem domain
     required: true
     requires: []                          # steps that must be done first
-    generates: research.md                # resolved to chainFlow/tasks/<task-name>/research.md
+    generates: research.md                # resolved to agentFlow/tasks/<task-name>/research.md
     generateStrategy: replace             # update | replace | version
     subagent: false                       # false = no subagent | true = generic subagent | string = named subagent (label only, passed through to orchestrator)
     context:
-      instructions: research.md          # resolved to chainFlow/flows/<flow-name>/instructions/research.md
+      instructions: research.md          # resolved to agentFlow/flows/<flow-name>/instructions/research.md
       references:
         - docs/requirements.md
       steps: []                           # inject generated files from these steps
@@ -71,7 +71,7 @@ steps:
     required: true
     requires:
       - plan
-    generates: tasks.md                   # checkbox task list; resolved to chainFlow/tasks/<task-name>/tasks.md
+    generates: tasks.md                   # checkbox task list; resolved to agentFlow/tasks/<task-name>/tasks.md
     generateStrategy: replace
     context:
       instructions: task-breakdown.md
@@ -102,7 +102,7 @@ steps:
         - implement
 ```
 
-### Task state — `chainFlow/tasks/<name>/.taskState.yaml`
+### Task state — `agentFlow/tasks/<name>/.taskState.yaml`
 
 ```yaml
 active: true
@@ -143,19 +143,19 @@ steps:
 
 ## Commands
 
-### `chainflow init`
+### `agentflow init`
 Initializes the project structure.
 
 **Already implemented.**
 
 ---
 
-### `chainflow validate [--flow <name>]`
+### `agentflow validate [--flow <name>]`
 
 Developer utility. Not part of task workflow.
 
 - Without `--flow`: validates entire project structure
-  - Root `.chainflow.yaml` exists and is valid
+  - Root `.agentflow.yaml` exists and is valid
   - `flows/` and `tasks/` folders exist
   - All flows are individually valid
 - With `--flow <name>`: validates one flow
@@ -166,14 +166,14 @@ Developer utility. Not part of task workflow.
 
 ---
 
-### `chainflow start [--task <name>] [--flow <name>]`
+### `agentflow start [--task <name>] [--flow <name>]`
 
 Creates a new task and sets it as active.
 
 - `--task`: task name (required — no default, must be named)
 - `--flow`: optional, defaults to `defaultFlow` from root config
-- If `chainFlow/tasks/<name>/` already exists: error out — `Error: Task "<name>" already exists.`
-- Creates `chainFlow/tasks/<name>/` folder
+- If `agentFlow/tasks/<name>/` already exists: error out — `Error: Task "<name>" already exists.`
+- Creates `agentFlow/tasks/<name>/` folder
 - Writes `.taskState.yaml` with all steps initialized (`ready` or `blocked`)
 - Sets this task as `active: true`; sets previously active task to `active: false`
 
@@ -182,12 +182,12 @@ Creates a new task and sets it as active.
 Task started: my-feature
 Flow: plan
 Active steps: research
-Run: chainflow next
+Run: agentflow next
 ```
 
 ---
 
-### `chainflow next [--task <name>] [--parallel]`
+### `agentflow next [--task <name>] [--parallel]`
 
 Gets the next step(s) to work on.
 
@@ -198,7 +198,7 @@ Gets the next step(s) to work on.
 ```
 Step: research
 Status: ready
-Run: chainflow context --step research
+Run: agentflow context --step research
 ```
 
 **Output (with named subagent):**
@@ -206,7 +206,7 @@ Run: chainflow context --step research
 Step: research
 Status: ready
 Subagent: spawn subagent "researcher"
-Then run: chainflow context --step research --task my-feature
+Then run: agentflow context --step research --task my-feature
 ```
 
 **Output (with generic subagent):**
@@ -214,21 +214,21 @@ Then run: chainflow context --step research --task my-feature
 Step: research
 Status: ready
 Subagent: spawn a subagent
-Then run: chainflow context --step research --task my-feature
+Then run: agentflow context --step research --task my-feature
 ```
 
 **Output (--parallel, no subagents):**
 ```
 Steps ready for parallel execution:
-- research: run chainflow context --step research
-- setup: run chainflow context --step setup
+- research: run agentflow context --step research
+- setup: run agentflow context --step setup
 ```
 
 **Output (--parallel, with subagents):**
 ```
 Steps ready for parallel execution. Spawn a subagent for each step below:
-- research: spawn subagent "researcher", then run chainflow context --step research --task my-feature
-- setup: spawn subagent "setup", then run chainflow context --step setup --task my-feature
+- research: spawn subagent "researcher", then run agentflow context --step research --task my-feature
+- setup: spawn subagent "setup", then run agentflow context --step setup --task my-feature
 Run all subagents in parallel before proceeding.
 ```
 
@@ -240,7 +240,7 @@ All steps are done.
 
 ---
 
-### `chainflow context --step <name> [--task <name>]`
+### `agentflow context --step <name> [--task <name>]`
 
 Outputs full context for a step, meant to be injected directly into an agent prompt.
 
@@ -255,21 +255,21 @@ Outputs full context for a step, meant to be injected directly into an agent pro
    - "Review feedback (<revisedBy-generates-file>):" + inlines the generated file of the `revisedBy` step
    - "Rework this step based on the review feedback above."
 3. Contents of the step's `instructions` file
-4. For each path in `references`: inlines the file content; paths are resolved relative to the working directory (project root) where `chainflow` is invoked
+4. For each path in `references`: inlines the file content; paths are resolved relative to the working directory (project root) where `agentflow` is invoked
 5. For each step in `context.steps`:
    - If step is `done` and file exists: inlines the content of that step's generated file
    - If step is optional (`required: false`) and not `done`: outputs "Note: Optional step \"<name>\" was not completed — skipping context injection."
    - If step is required and `done` but file is missing: error out — `Error: Generated file for step "<name>" not found: <path>`
-6. If `validates` is set: inlines the generated file of each validated step, followed by: "Evaluate each of the above steps and decide pass or fail. First run: `chainflow complete --step <this-step> --task <task>`. Then, for each step that fails, run: `chainflow revise --step <name> --from <this-step> --task <task>`"
+6. If `validates` is set: inlines the generated file of each validated step, followed by: "Evaluate each of the above steps and decide pass or fail. First run: `agentflow complete --step <this-step> --task <task>`. Then, for each step that fails, run: `agentflow revise --step <name> --from <this-step> --task <task>`"
 7. If `generates` is set: "This step must generate the file: <path>. Strategy: <strategy instruction>"
    - `update`: "An existing version exists. Update it in place."
    - `replace`: "An existing version exists. Replace it entirely."
    - `version`: "An existing version exists. Rename it to <file>.v<n>.<ext> before writing the new version." (`<n>` = current `revisionCount` from `.taskState.yaml`)
-8. "When this step is complete, run: `chainflow complete --step <name> --task <task>`"
+8. "When this step is complete, run: `agentflow complete --step <name> --task <task>`"
 
 ---
 
-### `chainflow complete --step <name> [--task <name>]`
+### `agentflow complete --step <name> [--task <name>]`
 
 Marks a step as done and unblocks downstream steps.
 
@@ -281,12 +281,12 @@ Marks a step as done and unblocks downstream steps.
 ```
 Step complete: research
 Unblocked: plan
-Run: chainflow next
+Run: agentflow next
 ```
 
 ---
 
-### `chainflow revise --step <name> --from <step> [--task <name>]`
+### `agentflow revise --step <name> --from <step> [--task <name>]`
 
 Marks a step for revision and cascades downstream.
 
@@ -301,18 +301,18 @@ Marks a step for revision and cascades downstream.
 ```
 Step marked for revision: research (revision 2/3)
 Cascaded to ready: plan, task-breakdown, implement, review
-Run: chainflow next
+Run: agentflow next
 ```
 
 **Output (max revisions reached):**
 ```
 Warning: Step "research" has reached the maximum number of revisions (3/3). Revision ignored.
-Run: chainflow next
+Run: agentflow next
 ```
 
 ---
 
-### `chainflow state [--task <name>]`
+### `agentflow state [--task <name>]`
 
 Shows the current state of all steps in a task.
 
@@ -334,7 +334,7 @@ review          blocked     requires: implement
 
 ---
 
-### `chainflow list flows`
+### `agentflow list flows`
 
 Lists all available flows in the project.
 
@@ -347,7 +347,7 @@ research    Deep research workflow
 
 ---
 
-### `chainflow list tasks`
+### `agentflow list tasks`
 
 Lists all tasks and their current status.
 
@@ -374,7 +374,7 @@ other-task                flow: plan    steps: 5/5 done
 **Error example:**
 ```
 Error: No active task found.
-Run: chainflow start --task <name>
+Run: agentflow start --task <name>
 ```
 
 ---
@@ -382,8 +382,8 @@ Run: chainflow start --task <name>
 ## Implementation Order
 
 ### Phase 1 — Foundation
-- Install `yaml` npm package for runtime YAML parsing (read/write `.chainflow.yaml` and `.taskState.yaml`)
-- Flow schema (Zod) for `flows/<name>/.chainflow.yaml`
+- Install `yaml` npm package for runtime YAML parsing (read/write `.agentflow.yaml` and `.taskState.yaml`)
+- Flow schema (Zod) for `flows/<name>/.agentflow.yaml`
 - Task state schema (Zod) for `.taskState.yaml`
 - Flow loader (read + parse + validate flow config)
 - Task state reader/writer utilities
@@ -410,5 +410,5 @@ Run: chainflow start --task <name>
 ---
 
 ## Future
-- Claude Code skill that teaches agents how to use `chainflow`
+- Claude Code skill that teaches agents how to use `agentflow`
 - Claude Code skill to scaffold a new flow interactively

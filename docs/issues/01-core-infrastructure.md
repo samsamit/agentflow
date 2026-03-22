@@ -17,11 +17,11 @@ Reference: `docs/prd.md` — Implementation Decisions → `output.ts`, TypeScrip
 
 ## Acceptance criteria
 
-- [ ] `src/output.ts` exists and exports named functions for every output pattern needed by existing code
-- [ ] No `console.log` or `console.error` calls exist outside `output.ts`
-- [ ] `fileIo.ts` throws on failure; `Try<T>` type is deleted
-- [ ] All four strict TS flags are enabled and the project compiles with zero errors
-- [ ] `chainflow init` still works end-to-end after the refactor
+- [x] `src/output.ts` exists and exports named functions for every output pattern needed by existing code
+- [x] No `console.log` or `console.error` calls exist outside `output.ts`
+- [x] `fileIo.ts` throws on failure; `Try<T>` type is deleted
+- [x] All four strict TS flags are enabled and the project compiles with zero errors
+- [x] `agentflow init` still works end-to-end after the refactor
 
 ## Blocked by
 

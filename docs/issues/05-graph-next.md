@@ -5,7 +5,7 @@
 
 ## What to build
 
-Implement the `graph/` pure-function module and the `chainflow next` command. The graph module is the core dependency engine — it must be entirely pure (no filesystem access) and fully tested.
+Implement the `graph/` pure-function module and the `agentflow next` command. The graph module is the core dependency engine — it must be entirely pure (no filesystem access) and fully tested.
 
 - Implement `src/graph/` with pure exported functions:
   - `buildDependencyGraph(steps)` — builds an adjacency structure from `requires` declarations
@@ -30,15 +30,15 @@ Reference: `docs/prd.md` — Workflow Navigation (32–37), Implementation Decis
 
 ## Acceptance criteria
 
-- [ ] `graph/` module contains only pure functions — no `fs` or `process.cwd()`
-- [ ] `topologicalSort` returns a valid ordering for a DAG
-- [ ] `detectCycle` throws with the cycle path for a circular graph
-- [ ] `resolveReadySteps` returns correct steps for representative task states
-- [ ] `chainflow next` outputs the next step and exact command
-- [ ] `chainflow next --parallel` returns all ready steps
-- [ ] `chainflow next` includes subagent instruction when `subagent` is set
-- [ ] `chainflow next` reports task complete when all steps are `done`
-- [ ] Unit tests cover all graph logic cases
+- [x] `graph/` module contains only pure functions — no `fs` or `process.cwd()`
+- [x] `topologicalSort` returns a valid ordering for a DAG
+- [x] `detectCycle` throws with the cycle path for a circular graph
+- [x] `resolveReadySteps` returns correct steps for representative task states
+- [x] `agentflow next` outputs the next step and exact command
+- [x] `agentflow next --parallel` returns all ready steps
+- [x] `agentflow next` includes subagent instruction when `subagent` is set
+- [x] `agentflow next` reports task complete when all steps are `done`
+- [x] Unit tests cover all graph logic cases
 
 ## Blocked by
 

@@ -2,7 +2,7 @@
 
 ## What this project is
 
-`chainflow` is an agent-first CLI workflow engine. It lets users define multi-step workflows (flows) in YAML and run tasks through them. An AI agent calls `chainflow` commands to navigate the workflow, receive injected context for each step, and track progress. The tool enforces dependency order, cascades revisions downstream, and injects all necessary context so the agent never needs to explore on its own.
+`agentflow` is an agent-first CLI workflow engine. It lets users define multi-step workflows (flows) in YAML and run tasks through them. An AI agent calls `agentflow` commands to navigate the workflow, receive injected context for each step, and track progress. The tool enforces dependency order, cascades revisions downstream, and injects all necessary context so the agent never needs to explore on its own.
 
 The full command specification and flow/task state schemas are in `docs/plan.md`. Read it before implementing any command.
 
@@ -142,7 +142,7 @@ Tests live in `src/**/*.test.ts` alongside the module they test.
 
 ## IDE schema support
 
-`chainflow init` always prompts the user interactively (via `@inquirer/prompts`) to select their IDE before writing any config. Never auto-detect and silently write.
+`agentflow init` always prompts the user interactively (via `@inquirer/prompts`) to select their IDE before writing any config. Never auto-detect and silently write.
 
 Supported IDEs:
 - **VS Code** → `.vscode/settings.json` (`yaml.schemas` entry)
@@ -150,7 +150,7 @@ Supported IDEs:
 - **Zed** → `.zed/settings.json` (`file_associations` entry)
 
 The JSON Schema for flow config is:
-- Shipped in the npm package at `schema/chainflow-flow.schema.json`
+- Shipped in the npm package at `schema/agentflow-flow.schema.json`
 - Generated at build time from Zod schemas via `zod-to-json-schema`
 - Submitted to SchemaStore so VS Code YAML extension picks it up automatically
 
@@ -166,13 +166,13 @@ Do not use `js-yaml`.
 
 ## File and path conventions
 
-- All paths are resolved relative to `process.cwd()` (the directory where `chainflow` is invoked), not relative to `__dirname` or the package location
-- Folder and file name constants live in `src/constants.ts` — never hardcode strings like `"chainFlow"` or `".chainflow.yaml"` outside of that file
+- All paths are resolved relative to `process.cwd()` (the directory where `agentflow` is invoked), not relative to `__dirname` or the package location
+- Folder and file name constants live in `src/constants.ts` — never hardcode strings like `"agentFlow"` or `".agentflow.yaml"` outside of that file
 
 ---
 
 ## What is already implemented
 
-- `chainflow init` — creates the `chainFlow/` directory structure and root config
+- `agentflow init` — creates the `agentFlow/` directory structure and root config
 
 Everything else (validate, start, next, context, complete, revise, state, list) is not yet implemented. See `docs/plan.md` for full specifications.

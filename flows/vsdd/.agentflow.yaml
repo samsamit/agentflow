@@ -1,0 +1,201 @@
+name: vsdd
+description: >
+  Verified Spec-Driven Development — a unified methodology fusing Spec-Driven
+  Development (SDD), Test-Driven Development (TDD), and Verification-Driven
+  Development (VDD) into a single AI-orchestrated pipeline with formal
+  verification gates.
+maxRevisions: 5
+
+steps:
+  # ─── PHASE 1: Spec Crystallization ────────────────────────────────────────
+
+  - name: behavioral-spec
+    description: "Phase 1a: Formal behavioral contract, interface definition, edge case catalog, NFRs"
+    required: true
+    subagent: builder
+    requires: []
+    generates: behavioral-spec.md
+    generateStrategy: replace
+    context:
+      instructions: behavioral-spec.md
+      steps: []
+    validates: []
+
+  - name: verification-architecture
+    description: "Phase 1b: Provable properties catalog, purity boundary map, verification tooling selection"
+    required: true
+    subagent: builder
+    requires:
+      - behavioral-spec
+    generates: verification-architecture.md
+    generateStrategy: replace
+    context:
+      instructions: verification-architecture.md
+      steps:
+        - behavioral-spec
+    validates: []
+
+  - name: spec-review
+    description: "Phase 1c: Adversarial spec gate — Sarcasmotron tears into behavioral contract and verification strategy"
+    required: true
+    subagent: adversary
+    requires:
+      - verification-architecture
+    generates: spec-review.md
+    generateStrategy: replace
+    context:
+      instructions: spec-review.md
+      steps:
+        - behavioral-spec
+        - verification-architecture
+    validates:
+      - behavioral-spec
+      - verification-architecture
+
+  # ─── PHASE 2: Test-First Implementation ───────────────────────────────────
+
+  - name: test-generation
+    description: "Phase 2a: Full test suite — all tests must fail before any implementation begins (Red Gate)"
+    required: true
+    subagent: builder
+    requires:
+      - spec-review
+    generates: test-generation.md
+    generateStrategy: replace
+    context:
+      instructions: test-generation.md
+      steps:
+        - behavioral-spec
+        - verification-architecture
+    validates: []
+
+  - name: implementation
+    description: "Phase 2b: Minimal TDD implementation — one failing test at a time, purity boundaries respected"
+    required: true
+    subagent: builder
+    requires:
+      - test-generation
+    generates: implementation.md
+    generateStrategy: update
+    context:
+      instructions: implementation.md
+      steps:
+        - behavioral-spec
+        - verification-architecture
+        - test-generation
+    validates: []
+
+  - name: refactor
+    description: "Phase 2c: Refactor for clarity and NFRs; purity audit; human checkpoint"
+    required: true
+    subagent: builder
+    requires:
+      - implementation
+    generates: refactor.md
+    generateStrategy: replace
+    context:
+      instructions: refactor.md
+      steps:
+        - behavioral-spec
+        - verification-architecture
+        - test-generation
+        - implementation
+    validates: []
+
+  # ─── PHASE 3: Adversarial Refinement ──────────────────────────────────────
+
+  - name: adversarial-review
+    description: "Phase 3: Fresh-context five-dimension adversarial roast — spec fidelity, test quality, code, security, spec gaps"
+    required: true
+    subagent: adversary
+    requires:
+      - refactor
+    generates: adversarial-review.md
+    generateStrategy: replace
+    context:
+      instructions: adversarial-review.md
+      steps:
+        - behavioral-spec
+        - verification-architecture
+        - test-generation
+        - implementation
+        - refactor
+    validates:
+      - behavioral-spec
+      - verification-architecture
+      - test-generation
+      - implementation
+      - refactor
+
+  # ─── PHASE 4: Feedback Integration Loop ───────────────────────────────────
+
+  - name: feedback-integration
+    description: "Phase 4: Triage adversarial critique, route each finding to the correct upstream step"
+    required: true
+    subagent: builder
+    requires:
+      - adversarial-review
+    generates: feedback-integration.md
+    generateStrategy: replace
+    context:
+      instructions: feedback-integration.md
+      steps:
+        - adversarial-review
+        - behavioral-spec
+        - verification-architecture
+        - test-generation
+        - implementation
+    validates:
+      - behavioral-spec
+      - verification-architecture
+      - test-generation
+      - implementation
+      - refactor
+
+  # ─── PHASE 5: Formal Hardening ────────────────────────────────────────────
+
+  - name: formal-hardening
+    description: "Phase 5: Execute verification plan — proofs, fuzzing, security scanning, mutation testing, purity audit"
+    required: true
+    subagent: builder
+    requires:
+      - feedback-integration
+    generates: formal-hardening.md
+    generateStrategy: replace
+    context:
+      instructions: formal-hardening.md
+      steps:
+        - verification-architecture
+        - test-generation
+        - implementation
+        - refactor
+    validates: []
+
+  # ─── PHASE 6: Convergence ─────────────────────────────────────────────────
+
+  - name: convergence-check
+    description: "Phase 6: Four-dimensional convergence gate — declares Zero-Slop or routes back"
+    required: true
+    subagent: adversary
+    requires:
+      - formal-hardening
+    generates: convergence-check.md
+    generateStrategy: replace
+    context:
+      instructions: convergence-check.md
+      steps:
+        - behavioral-spec
+        - verification-architecture
+        - test-generation
+        - implementation
+        - refactor
+        - adversarial-review
+        - formal-hardening
+    validates:
+      - behavioral-spec
+      - verification-architecture
+      - test-generation
+      - implementation
+      - refactor
+      - adversarial-review
+      - formal-hardening

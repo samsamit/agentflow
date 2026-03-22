@@ -1,34 +1,47 @@
 {
-  "name": "agent-chain-flow",
+  "name": "agentflow",
   "version": "1.0.0",
   "description": "Workflow manager for agentic use",
-  "homepage": "https://github.com/samsamit/agent-chain-flow#readme",
+  "homepage": "https://github.com/samsamit/agentflow#readme",
   "bugs": {
-    "url": "https://github.com/samsamit/agent-chain-flow/issues"
+    "url": "https://github.com/samsamit/agentflow/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/samsamit/agent-chain-flow.git"
+    "url": "git+https://github.com/samsamit/agentflow.git"
   },
   "license": "MIT",
   "author": "Samu Tiainen",
   "type": "module",
   "main": "dist/index.mjs",
   "bin": {
-    "chainflow": "dist/index.mjs"
+    "agentflow": "dist/index.mjs"
   },
+  "files": [
+    "dist",
+    "schema",
+    "flows",
+    "skills"
+  ],
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown && node dist/scripts/generate-schema.mjs",
     "watch": "tsdown --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "test:run": "vitest run",
+    "check": "biome check src",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
     "@types/node": "^25.5.0",
     "tsdown": "^0.21.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.3.2",
     "commander": "^14.0.3",
+    "yaml": "^2.8.3",
     "zod": "^4.3.6"
   }
 }
