@@ -1,8 +1,5 @@
-import * as path from "path";
-import {
-  DEFAULT_ROOT_FOLDER_NAME,
-  TASKS_FOLDER_NAME,
-} from "../constants.js";
+import * as path from "node:path";
+import { DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME } from "../constants.js";
 import { fileExists, listDirs } from "../utils/fileIo.js";
 import { readTaskState, writeTaskState } from "./io.js";
 import type { TaskState } from "./schema.js";
@@ -11,9 +8,11 @@ import type { TaskState } from "./schema.js";
  * Finds the currently active task in agentFlow/tasks/.
  * Throws if no task is active.
  */
-export function resolveActiveTask(
-  projectRoot: string,
-): { name: string; dir: string; state: TaskState } {
+export function resolveActiveTask(projectRoot: string): {
+  name: string;
+  dir: string;
+  state: TaskState;
+} {
   const tasksDir = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME);
 
   if (!fileExists(tasksDir)) {
@@ -49,12 +48,7 @@ export function resolveTask(
     return resolveActiveTask(projectRoot);
   }
 
-  const taskDir = path.join(
-    projectRoot,
-    DEFAULT_ROOT_FOLDER_NAME,
-    TASKS_FOLDER_NAME,
-    taskName,
-  );
+  const taskDir = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName);
 
   if (!fileExists(taskDir)) {
     throw new Error(`Task "${taskName}" not found.`);

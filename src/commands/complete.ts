@@ -1,8 +1,8 @@
-import * as output from "../output.js";
 import { loadFlow } from "../flow/index.js";
+import { resolveUnblockedSteps } from "../graph/index.js";
+import * as output from "../output.js";
 import { resolveTask, setActiveTask } from "../task/index.js";
 import { writeTaskState } from "../task/io.js";
-import { resolveUnblockedSteps } from "../graph/index.js";
 
 export type CompleteArgs = {
   projectRoot?: string;
@@ -45,9 +45,10 @@ export function completeCommand(args: CompleteArgs): void {
 
   // Build updated steps: mark step as done, omit revisedBy
   // Construct explicitly to satisfy exactOptionalPropertyTypes (revisedBy must be absent, not undefined)
-  const doneStep = currentStepState.revisionCount !== undefined
-    ? { state: "done" as const, revisionCount: currentStepState.revisionCount }
-    : { state: "done" as const };
+  const doneStep =
+    currentStepState.revisionCount !== undefined
+      ? { state: "done" as const, revisionCount: currentStepState.revisionCount }
+      : { state: "done" as const };
   const updatedSteps = {
     ...taskState.steps,
     [stepName]: doneStep,
@@ -79,7 +80,10 @@ export async function completeCommandHandler(options: {
   task?: string;
 }): Promise<void> {
   try {
-    completeCommand({ stepName: options.step, taskName: options.task });
+    completeCommand({
+      stepName: options.step,
+      ...(options.task !== undefined && { taskName: options.task }),
+    });
   } catch (err) {
     output.error(err);
     process.exit(1);

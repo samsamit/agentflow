@@ -153,8 +153,7 @@ export function resolveUnblockedSteps(
     const requires = step.requires ?? [];
     if (requires.length === 0) continue;
     const allDone = requires.every(
-      (req) =>
-        req === completedStepName || taskStepStates[req]?.state === "done",
+      (req) => req === completedStepName || taskStepStates[req]?.state === "done",
     );
     if (allDone) {
       result.push(step.name);

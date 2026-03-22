@@ -7,4 +7,3 @@ describe("placeholder", () => {
     // intentionally empty
   });
 });
-

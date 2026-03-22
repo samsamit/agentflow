@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 /**
  * Creates a file at the specified path with the given content.
@@ -35,9 +35,7 @@ export function createFile(
  * If the folder already exists, returns { alreadyExists: true } without failing.
  * Throws on invalid arguments or I/O failure.
  */
-export function createFolder(
-  folderPath: string,
-): { folderPath: string; alreadyExists: boolean } {
+export function createFolder(folderPath: string): { folderPath: string; alreadyExists: boolean } {
   if (typeof folderPath !== "string" || folderPath.trim() === "") {
     throw new TypeError("Invalid folder path. It must be a non-empty string.");
   }

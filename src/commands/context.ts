@@ -1,7 +1,7 @@
+import { assembleContext } from "../context/assembler.js";
+import { loadFlow } from "../flow/index.js";
 import * as output from "../output.js";
 import { resolveTask, setActiveTask } from "../task/resolver.js";
-import { loadFlow } from "../flow/index.js";
-import { assembleContext } from "../context/assembler.js";
 
 export type ContextArgs = {
   projectRoot?: string;
@@ -49,7 +49,10 @@ export async function contextCommandHandler(options: {
   task?: string;
 }): Promise<void> {
   try {
-    contextCommand({ stepName: options.step, taskName: options.task });
+    contextCommand({
+      stepName: options.step,
+      ...(options.task !== undefined && { taskName: options.task }),
+    });
   } catch (err) {
     output.error(err);
     process.exit(1);

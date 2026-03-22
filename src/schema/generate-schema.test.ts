@@ -2,8 +2,9 @@
  * This test generates the checked-in schema file at schema/agentflow-flow.schema.json.
  * It runs as part of the test suite to keep the schema up to date.
  */
-import { fileURLToPath } from "url";
-import * as path from "path";
+
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it } from "vitest";
 import { generateFlowSchema } from "./index.js";
 

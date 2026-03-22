@@ -5,8 +5,8 @@
  * Run via: node dist/generate-schema.mjs
  * Called automatically by the build script.
  */
-import * as path from "path";
-import { fileURLToPath } from "url";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { generateFlowSchema } from "../schema/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

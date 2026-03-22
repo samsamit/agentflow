@@ -1,7 +1,7 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { checkbox, select } from "@inquirer/prompts";
-import { fileURLToPath } from "url";
-import * as fs from "fs";
-import * as path from "path";
 import {
   AGENTS_FOLDER_NAME,
   AI_TOOL_ROOTS,
@@ -19,8 +19,14 @@ import { writeVsCodeSettings } from "../ide/vscode.js";
 import { writeZedSettings } from "../ide/zed.js";
 import * as output from "../output.js";
 import { generateFlowSchema } from "../schema/index.js";
-import { copyDirRecursive, createFolder, fileExists, listDirs, writeFile } from "../utils/fileIo.js";
 import configTemplate from "../templates/config.yaml";
+import {
+  copyDirRecursive,
+  createFolder,
+  fileExists,
+  listDirs,
+  writeFile,
+} from "../utils/fileIo.js";
 
 /** Resolves the absolute path to the bundled flows directory (flows/ at package root). */
 function getBundledFlowsDir(): string {
@@ -44,7 +50,14 @@ function getBundledSkillFile(): string {
   const __filename = fileURLToPath(import.meta.url);
   const candidates = [
     path.resolve(path.dirname(__filename), "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME),
-    path.resolve(path.dirname(__filename), "..", "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME),
+    path.resolve(
+      path.dirname(__filename),
+      "..",
+      "..",
+      SKILLS_FOLDER_NAME,
+      SKILL_NAME,
+      SKILL_FILE_NAME,
+    ),
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;

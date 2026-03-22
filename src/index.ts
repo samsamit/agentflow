@@ -2,29 +2,23 @@
 
 import { Command } from "commander";
 import {
-  init,
-  validateCommand,
-  startCommandHandler,
-  nextCommandHandler,
+  completeCommandHandler,
   contextCommandHandler,
-  stateCommandHandler,
+  init,
   listFlowsCommandHandler,
   listTasksCommandHandler,
-  completeCommandHandler,
+  nextCommandHandler,
   reviseCommandHandler,
+  startCommandHandler,
+  stateCommandHandler,
+  validateCommand,
 } from "./commands/index.js";
 
 const program = new Command();
 
-program
-  .name("agentflow")
-  .description("A CLI tool for managing agentic workflows")
-  .version("1.0.0");
+program.name("agentflow").description("A CLI tool for managing agentic workflows").version("1.0.0");
 
-program
-    .command("init")
-    .description("Initialize agentflow in the current directory")
-    .action(init)
+program.command("init").description("Initialize agentflow in the current directory").action(init);
 
 program
   .command("validate")
@@ -72,11 +66,11 @@ program
   .requiredOption("--step <name>", "step name")
   .requiredOption("--from <step>", "step triggering the revision")
   .option("--task <name>", "task name (sets as active if given)")
-  .action((options: { step: string; from: string; task?: string }) => reviseCommandHandler(options));
+  .action((options: { step: string; from: string; task?: string }) =>
+    reviseCommandHandler(options),
+  );
 
-const listCmd = program
-  .command("list")
-  .description("List flows or tasks");
+const listCmd = program.command("list").description("List flows or tasks");
 
 listCmd
   .command("flows")

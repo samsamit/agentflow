@@ -64,27 +64,21 @@ export function validateFlow(
     // requires
     for (const dep of step.requires ?? []) {
       if (!stepNames.has(dep)) {
-        errors.push(
-          `Step "${step.name}" requires unknown step "${dep}".`,
-        );
+        errors.push(`Step "${step.name}" requires unknown step "${dep}".`);
       }
     }
 
     // context.steps
     for (const ctxStep of step.context.steps ?? []) {
       if (!stepNames.has(ctxStep)) {
-        errors.push(
-          `Step "${step.name}" references unknown step "${ctxStep}" in context.steps.`,
-        );
+        errors.push(`Step "${step.name}" references unknown step "${ctxStep}" in context.steps.`);
       }
     }
 
     // validates
     for (const validated of step.validates ?? []) {
       if (!stepNames.has(validated)) {
-        errors.push(
-          `Step "${step.name}" references unknown step "${validated}" in validates.`,
-        );
+        errors.push(`Step "${step.name}" references unknown step "${validated}" in validates.`);
       }
     }
 

@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
-import * as os from "os";
-import * as path from "path";
-import * as fs from "fs";
-import { assembleContext } from "./assembler.js";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { describe, expect, it } from "vitest";
 import type { FlowConfig } from "../flow/schema.js";
 import type { StepState } from "../task/schema.js";
+import { assembleContext } from "./assembler.js";
 
 /**
  * Helper to build a minimal temp project directory for context tests.
@@ -95,7 +95,10 @@ describe("assembleContext — ready state", () => {
 
     // Reference file in project root
     fs.mkdirSync(path.join(projectRoot, "docs"), { recursive: true });
-    fs.writeFileSync(path.join(projectRoot, "docs", "requirements.md"), "# Requirements\nBe fast.\n");
+    fs.writeFileSync(
+      path.join(projectRoot, "docs", "requirements.md"),
+      "# Requirements\nBe fast.\n",
+    );
 
     const flow: FlowConfig = {
       name: "plan",
@@ -153,6 +156,7 @@ describe("assembleContext — ready state", () => {
           requires: [],
           generates: "research.md",
           generateStrategy: "replace",
+          context: { instructions: "research.md" },
         },
         {
           name: "plan",
@@ -212,6 +216,7 @@ describe("assembleContext — optional skipped upstream step", () => {
           requires: [],
           generates: "research.md",
           generateStrategy: "replace",
+          context: { instructions: "research.md" },
         },
         {
           name: "plan",
@@ -244,7 +249,9 @@ describe("assembleContext — optional skipped upstream step", () => {
       taskStepStates,
     });
 
-    expect(result).toContain('Note: Optional step "research" was not completed — skipping context injection.');
+    expect(result).toContain(
+      'Note: Optional step "research" was not completed — skipping context injection.',
+    );
 
     fs.rmSync(projectRoot, { recursive: true });
   });
@@ -271,6 +278,7 @@ describe("assembleContext — missing required upstream file", () => {
           requires: [],
           generates: "research.md",
           generateStrategy: "replace",
+          context: { instructions: "research.md" },
         },
         {
           name: "plan",
@@ -344,6 +352,7 @@ describe("assembleContext — revision state", () => {
           requires: ["research"],
           generates: "review.md",
           generateStrategy: "replace",
+          context: { instructions: "review.md" },
           validates: ["research"],
         },
       ],
@@ -397,6 +406,7 @@ describe("assembleContext — validates steps", () => {
           requires: [],
           generates: "research.md",
           generateStrategy: "replace",
+          context: { instructions: "research.md" },
         },
         {
           name: "plan",
@@ -405,6 +415,7 @@ describe("assembleContext — validates steps", () => {
           requires: ["research"],
           generates: "plan.md",
           generateStrategy: "replace",
+          context: { instructions: "plan.md" },
         },
         {
           name: "review",

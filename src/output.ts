@@ -5,11 +5,11 @@
  */
 
 function write(text: string): void {
-  process.stdout.write(text + "\n");
+  process.stdout.write(`${text}\n`);
 }
 
 function writeErr(text: string): void {
-  process.stderr.write(text + "\n");
+  process.stderr.write(`${text}\n`);
 }
 
 // ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ export function banner(): void {
 export function initSection(title: string): void {
   write("");
   write(styled(`  ${title}`, c.bold, c.brightWhite));
-  write(styled("  " + "─".repeat(44), c.gray));
+  write(styled(`  ${"─".repeat(44)}`, c.gray));
 }
 
 export function initCreated(label: string): void {
@@ -84,9 +84,13 @@ export function initWarning(label: string): void {
 export function initSuccess(): void {
   write("");
   write(styled("  ────────────────────────────────────────────────", c.gray));
-  write(`  ${styled("✦", c.brightCyan, c.bold)}  ${styled("agentflow initialized successfully", c.bold, c.brightWhite)}`);
+  write(
+    `  ${styled("✦", c.brightCyan, c.bold)}  ${styled("agentflow initialized successfully", c.bold, c.brightWhite)}`,
+  );
   write(`     ${styled("Next:", c.dim, c.gray)} ${styled("agentflow validate", c.cyan)}`);
-  write(`     ${styled("Docs:", c.dim, c.gray)} ${styled("https://github.com/samsamit/agentflow#readme", c.dim, c.cyan)}`);
+  write(
+    `     ${styled("Docs:", c.dim, c.gray)} ${styled("https://github.com/samsamit/agentflow#readme", c.dim, c.cyan)}`,
+  );
   write("");
 }
 
@@ -119,11 +123,7 @@ export function taskComplete(taskName: string): void {
 // ---------------------------------------------------------------------------
 
 /** subagent: undefined = no subagent, true = generic, string = named */
-export function nextStep(
-  stepName: string,
-  subagent?: string | true,
-  taskName?: string,
-): void {
+export function nextStep(stepName: string, subagent?: string | true, taskName?: string): void {
   write(`Step: ${stepName}`);
   write("Status: ready");
   if (subagent === undefined) {

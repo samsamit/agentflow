@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
-import * as os from "os";
-import * as path from "path";
-import * as fs from "fs";
-import { startCommand } from "./start.js";
-import { readTaskState } from "../task/io.js";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { describe, expect, it } from "vitest";
 import { TASK_STATE_FILE_NAME } from "../constants.js";
+import { readTaskState } from "../task/io.js";
+import { startCommand } from "./start.js";
 
 /**
  * Creates a minimal project structure with a root config and a flow config.
@@ -14,10 +14,7 @@ function makeTestProject(): string {
 
   // root config
   fs.mkdirSync(path.join(projectRoot, "agentFlow"), { recursive: true });
-  fs.writeFileSync(
-    path.join(projectRoot, "agentFlow", ".agentflow.yaml"),
-    "defaultFlow: plan\n",
-  );
+  fs.writeFileSync(path.join(projectRoot, "agentFlow", ".agentflow.yaml"), "defaultFlow: plan\n");
 
   // tasks folder
   fs.mkdirSync(path.join(projectRoot, "agentFlow", "tasks"), { recursive: true });
@@ -26,7 +23,7 @@ function makeTestProject(): string {
   fs.mkdirSync(path.join(projectRoot, "agentFlow", "flows", "plan"), { recursive: true });
   fs.writeFileSync(
     path.join(projectRoot, "agentFlow", "flows", "plan", ".agentflow.yaml"),
-    [
+    `${[
       "name: plan",
       "description: Standard planning workflow",
       "steps:",
@@ -41,7 +38,7 @@ function makeTestProject(): string {
       "      - research",
       "    context:",
       "      instructions: implement.md",
-    ].join("\n") + "\n",
+    ].join("\n")}\n`,
   );
 
   return projectRoot;
@@ -68,8 +65,8 @@ describe("startCommand integration", () => {
 
     expect(state.active).toBe(true);
     expect(state.flow).toBe("plan");
-    expect(state.steps["research"]?.state).toBe("ready");
-    expect(state.steps["implement"]?.state).toBe("blocked");
+    expect(state.steps.research?.state).toBe("ready");
+    expect(state.steps.implement?.state).toBe("blocked");
 
     fs.rmSync(projectRoot, { recursive: true });
   });
@@ -109,14 +106,14 @@ describe("startCommand integration", () => {
     fs.mkdirSync(path.join(projectRoot, "agentFlow", "flows", "research"), { recursive: true });
     fs.writeFileSync(
       path.join(projectRoot, "agentFlow", "flows", "research", ".agentflow.yaml"),
-      [
+      `${[
         "name: research",
         "steps:",
         "  - name: gather",
         "    requires: []",
         "    context:",
         "      instructions: gather.md",
-      ].join("\n") + "\n",
+      ].join("\n")}\n`,
     );
 
     startCommand({ projectRoot, taskName: "my-research", flowName: "research" });
@@ -125,7 +122,7 @@ describe("startCommand integration", () => {
     const state = readTaskState(taskDir);
 
     expect(state.flow).toBe("research");
-    expect(state.steps["gather"]?.state).toBe("ready");
+    expect(state.steps.gather?.state).toBe("ready");
 
     fs.rmSync(projectRoot, { recursive: true });
   });

@@ -1,14 +1,11 @@
-import * as path from "path";
-import {
-  DEFAULT_ROOT_FOLDER_NAME,
-  TASKS_FOLDER_NAME,
-} from "../constants.js";
+import * as path from "node:path";
+import { DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME } from "../constants.js";
+import { loadFlow, resolveFlowName } from "../flow/index.js";
 import * as output from "../output.js";
-import { fileExists, createFolder } from "../utils/fileIo.js";
-import { resolveFlowName, loadFlow } from "../flow/index.js";
-import { getInitialStepStates } from "../task/state.js";
-import { writeTaskState, readTaskState } from "../task/io.js";
+import { writeTaskState } from "../task/io.js";
 import { setActiveTask } from "../task/resolver.js";
+import { getInitialStepStates } from "../task/state.js";
+import { createFolder, fileExists } from "../utils/fileIo.js";
 
 export type StartArgs = {
   projectRoot?: string;
@@ -63,7 +60,10 @@ export function startCommand(args: StartArgs): void {
  */
 export async function startCommandHandler(options: { task: string; flow?: string }): Promise<void> {
   try {
-    startCommand({ taskName: options.task, flowName: options.flow });
+    startCommand({
+      taskName: options.task,
+      ...(options.flow !== undefined && { flowName: options.flow }),
+    });
   } catch (err) {
     output.error(err);
     process.exit(1);

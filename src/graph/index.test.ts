@@ -1,41 +1,43 @@
-import { describe, it, expect } from "vitest";
-import {
-  topologicalSort,
-  detectCycle,
-  resolveReadySteps,
-  resolveUnblockedSteps,
-  resolveTransitiveCascade,
-  isTaskComplete,
-} from "./index.js";
+import { describe, expect, it } from "vitest";
 import type { StepConfig } from "../flow/schema.js";
 import type { StepState } from "../task/schema.js";
+import {
+  detectCycle,
+  isTaskComplete,
+  resolveReadySteps,
+  resolveTransitiveCascade,
+  resolveUnblockedSteps,
+  topologicalSort,
+} from "./index.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
+const ctx = { instructions: "instructions.md" };
+
 /** Simple linear DAG: research → plan → task-breakdown → implement → review */
 const linearSteps: StepConfig[] = [
-  { name: "research", requires: [] },
-  { name: "plan", requires: ["research"] },
-  { name: "task-breakdown", requires: ["plan"] },
-  { name: "implement", requires: ["task-breakdown"] },
-  { name: "review", requires: ["implement"] },
+  { name: "research", requires: [], context: ctx },
+  { name: "plan", requires: ["research"], context: ctx },
+  { name: "task-breakdown", requires: ["plan"], context: ctx },
+  { name: "implement", requires: ["task-breakdown"], context: ctx },
+  { name: "review", requires: ["implement"], context: ctx },
 ];
 
 /** Diamond DAG: research, design → both feed into plan */
 const diamondSteps: StepConfig[] = [
-  { name: "research", requires: [] },
-  { name: "design", requires: [] },
-  { name: "plan", requires: ["research", "design"] },
-  { name: "implement", requires: ["plan"] },
+  { name: "research", requires: [], context: ctx },
+  { name: "design", requires: [], context: ctx },
+  { name: "plan", requires: ["research", "design"], context: ctx },
+  { name: "implement", requires: ["plan"], context: ctx },
 ];
 
 /** Cyclic graph: a → b → c → a */
 const cyclicSteps: StepConfig[] = [
-  { name: "a", requires: ["c"] },
-  { name: "b", requires: ["a"] },
-  { name: "c", requires: ["b"] },
+  { name: "a", requires: ["c"], context: ctx },
+  { name: "b", requires: ["a"], context: ctx },
+  { name: "c", requires: ["b"], context: ctx },
 ];
 
 // ---------------------------------------------------------------------------
@@ -69,7 +71,7 @@ describe("topologicalSort", () => {
   });
 
   it("returns single step for a single-step flow", () => {
-    const order = topologicalSort([{ name: "solo", requires: [] }]);
+    const order = topologicalSort([{ name: "solo", requires: [], context: ctx }]);
     expect(order).toEqual(["solo"]);
   });
 });

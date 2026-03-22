@@ -29,6 +29,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "check": "biome check src",
+    "validate": "tsc --noEmit && npm run check && npm run test:run",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {

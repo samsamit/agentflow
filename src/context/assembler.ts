@@ -1,13 +1,13 @@
-import * as path from "path";
-import * as fs from "fs";
-import type { FlowConfig, StepConfig } from "../flow/schema.js";
-import type { StepState } from "../task/schema.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import {
   DEFAULT_ROOT_FOLDER_NAME,
   FLOWS_FOLDER_NAME,
   INSTRUCTIONS_FOLDER_NAME,
   TASKS_FOLDER_NAME,
 } from "../constants.js";
+import type { FlowConfig } from "../flow/schema.js";
+import type { StepState } from "../task/schema.js";
 
 export type AssembleContextParams = {
   stepName: string;
@@ -31,12 +31,7 @@ export function assembleContext(params: AssembleContextParams): string {
     throw new Error(`Step "${stepName}" not found in flow "${flowName}".`);
   }
 
-  const taskDir = path.join(
-    projectRoot,
-    DEFAULT_ROOT_FOLDER_NAME,
-    TASKS_FOLDER_NAME,
-    taskName,
-  );
+  const taskDir = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName);
 
   const parts: string[] = [];
 
@@ -169,7 +164,9 @@ export function assembleContext(params: AssembleContextParams): string {
     const strategy = step.generateStrategy ?? "replace";
 
     parts.push("");
-    parts.push(`This step must generate the file: ${[DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, step.generates].join("/")}`);
+    parts.push(
+      `This step must generate the file: ${[DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, step.generates].join("/")}`,
+    );
 
     if (strategy === "replace") {
       if (fileExists) {
@@ -209,9 +206,7 @@ export function assembleContext(params: AssembleContextParams): string {
     // Evaluation instruction (folds in the complete command)
     parts.push("");
     parts.push("Evaluate each of the above steps and decide pass or fail.");
-    parts.push(
-      `First run: \`agentflow complete --step ${stepName} --task ${taskName}\``,
-    );
+    parts.push(`First run: \`agentflow complete --step ${stepName} --task ${taskName}\``);
     parts.push(
       `Then, for each step that fails, run: \`agentflow revise --step <name> --from ${stepName} --task ${taskName}\``,
     );

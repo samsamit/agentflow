@@ -1,8 +1,8 @@
-import * as output from "../output.js";
-import type { ParallelStep } from "../output.js";
-import { resolveTask, setActiveTask } from "../task/resolver.js";
 import { loadFlow } from "../flow/index.js";
-import { resolveReadySteps, isTaskComplete } from "../graph/index.js";
+import { isTaskComplete, resolveReadySteps } from "../graph/index.js";
+import type { ParallelStep } from "../output.js";
+import * as output from "../output.js";
+import { resolveTask, setActiveTask } from "../task/resolver.js";
 
 export type NextArgs = {
   projectRoot?: string;
@@ -41,10 +41,8 @@ export function nextCommand(args: NextArgs): void {
     // Return all ready steps
     const parallelSteps: ParallelStep[] = readyStepNames.map((name) => {
       const stepConfig = flow.steps.find((s) => s.name === name);
-      return {
-        name,
-        subagent: stepConfig?.subagent === false ? undefined : stepConfig?.subagent,
-      };
+      const subagent = stepConfig?.subagent === false ? undefined : stepConfig?.subagent;
+      return subagent !== undefined ? { name, subagent } : { name };
     });
     output.nextParallel(parallelSteps, taskName);
   } else {
@@ -68,7 +66,10 @@ export async function nextCommandHandler(options: {
   parallel?: boolean;
 }): Promise<void> {
   try {
-    nextCommand({ taskName: options.task, parallel: options.parallel });
+    nextCommand({
+      ...(options.task !== undefined && { taskName: options.task }),
+      ...(options.parallel !== undefined && { parallel: options.parallel }),
+    });
   } catch (err) {
     output.error(err);
     process.exit(1);

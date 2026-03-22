@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 /**
  * Merges a file_associations entry into .zed/settings.json for the Zed editor.
@@ -33,7 +33,7 @@ export function writeZedSettings(projectRoot: string, schemaRelativePath: string
   const updated = {
     ...existing,
     file_associations: {
-      ...(existing["file_associations"] as Record<string, unknown> | undefined),
+      ...(existing.file_associations as Record<string, unknown> | undefined),
       ...fileAssociations,
     },
   };

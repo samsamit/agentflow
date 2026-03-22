@@ -1,5 +1,5 @@
-import * as path from "path";
-import { stringify, parse } from "yaml";
+import * as path from "node:path";
+import { parse, stringify } from "yaml";
 import { TASK_STATE_FILE_NAME } from "../constants.js";
 import { readFile, writeFile } from "../utils/fileIo.js";
 import type { TaskState } from "./schema.js";

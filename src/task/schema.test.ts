@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { stringify, parse } from "yaml";
-import { taskStateSchema } from "./schema.js";
+import { describe, expect, it } from "vitest";
+import { parse, stringify } from "yaml";
 import type { TaskState } from "./schema.js";
+import { taskStateSchema } from "./schema.js";
 
 describe("taskStateSchema round-trip", () => {
   it("serializes and parses back to the same data (simple)", () => {

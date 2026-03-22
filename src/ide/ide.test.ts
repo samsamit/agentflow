@@ -1,6 +1,6 @@
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { writeJetBrainsSchema } from "./jetbrains.js";
 import { writeVsCodeSettings } from "./vscode.js";
@@ -43,6 +43,7 @@ describe("writeVsCodeSettings", () => {
     expect(Object.keys(yamlSchemas)).toHaveLength(1);
     const [key] = Object.keys(yamlSchemas);
     expect(key).toContain("agentflow-flow.schema.json");
+    if (key === undefined) throw new Error("Expected at least one key in yaml.schemas");
     expect(yamlSchemas[key]).toEqual(["agentFlow/flows/*/.agentflow.yaml"]);
   });
 
@@ -101,7 +102,7 @@ describe("writeZedSettings", () => {
   it("writes file_associations entry with the correct key and value", () => {
     writeZedSettings(tmpDir, "schema/agentflow-flow.schema.json");
     const settings = readJson(path.join(tmpDir, ".zed", "settings.json"));
-    const fileAssociations = settings["file_associations"] as Record<string, unknown>;
+    const fileAssociations = settings.file_associations as Record<string, unknown>;
     expect(fileAssociations).toBeDefined();
     const pattern = "**/agentFlow/flows/*/.agentflow.yaml";
     expect(fileAssociations[pattern]).toContain("agentflow-flow.schema.json");
@@ -110,12 +111,12 @@ describe("writeZedSettings", () => {
   it("merges into existing settings.json without overwriting other keys", () => {
     const settingsPath = path.join(tmpDir, ".zed", "settings.json");
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-    fs.writeFileSync(settingsPath, JSON.stringify({ "tab_size": 4 }, null, 2));
+    fs.writeFileSync(settingsPath, JSON.stringify({ tab_size: 4 }, null, 2));
 
     writeZedSettings(tmpDir, "schema/agentflow-flow.schema.json");
     const settings = readJson(settingsPath);
-    expect(settings["tab_size"]).toBe(4);
-    expect(settings["file_associations"]).toBeDefined();
+    expect(settings.tab_size).toBe(4);
+    expect(settings.file_associations).toBeDefined();
   });
 
   it("returns the path to the settings file", () => {

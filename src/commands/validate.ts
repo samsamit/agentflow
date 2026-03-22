@@ -1,5 +1,5 @@
-import * as path from "path";
-import * as output from "../output.js";
+import * as path from "node:path";
+import { DEFAULT_ROOT_FOLDER_NAME, FLOWS_FOLDER_NAME, TASKS_FOLDER_NAME } from "../constants.js";
 import {
   listFlowNames,
   listInstructionFiles,
@@ -8,11 +8,7 @@ import {
   validateFlow,
   validateProject,
 } from "../flow/index.js";
-import {
-  DEFAULT_ROOT_FOLDER_NAME,
-  FLOWS_FOLDER_NAME,
-  TASKS_FOLDER_NAME,
-} from "../constants.js";
+import * as output from "../output.js";
 import { fileExists } from "../utils/fileIo.js";
 
 export async function validateCommand(options: { flow?: string }): Promise<void> {

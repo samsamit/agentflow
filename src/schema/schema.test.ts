@@ -1,6 +1,6 @@
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { generateFlowSchema } from "./index.js";
 
@@ -32,14 +32,14 @@ describe("generateFlowSchema", () => {
     const outputPath = path.join(tmpDir, "flow.schema.json");
     generateFlowSchema(outputPath);
     const schema = JSON.parse(fs.readFileSync(outputPath, "utf8")) as Record<string, unknown>;
-    expect(schema["type"]).toBe("object");
+    expect(schema.type).toBe("object");
   });
 
   it("generated schema includes 'name' and 'steps' in required properties", () => {
     const outputPath = path.join(tmpDir, "flow.schema.json");
     generateFlowSchema(outputPath);
     const schema = JSON.parse(fs.readFileSync(outputPath, "utf8")) as Record<string, unknown>;
-    const required = schema["required"] as string[] | undefined;
+    const required = schema.required as string[] | undefined;
     expect(required).toContain("name");
     expect(required).toContain("steps");
   });

@@ -1,8 +1,8 @@
-import * as output from "../output.js";
 import { loadFlow } from "../flow/index.js";
+import { resolveTransitiveCascade } from "../graph/index.js";
+import * as output from "../output.js";
 import { resolveTask, setActiveTask } from "../task/index.js";
 import { writeTaskState } from "../task/io.js";
-import { resolveTransitiveCascade } from "../graph/index.js";
 
 export type ReviseArgs = {
   projectRoot?: string;
@@ -85,7 +85,11 @@ export async function reviseCommandHandler(options: {
   task?: string;
 }): Promise<void> {
   try {
-    reviseCommand({ stepName: options.step, fromStep: options.from, taskName: options.task });
+    reviseCommand({
+      stepName: options.step,
+      fromStep: options.from,
+      ...(options.task !== undefined && { taskName: options.task }),
+    });
   } catch (err) {
     output.error(err);
     process.exit(1);

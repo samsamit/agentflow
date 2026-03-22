@@ -64,10 +64,7 @@ describe("output.nextStep", () => {
 describe("output.nextParallel", () => {
   it("prints parallel steps without subagents", async () => {
     const { nextParallel } = await import("./output.js");
-    nextParallel([
-      { name: "research" },
-      { name: "setup" },
-    ]);
+    nextParallel([{ name: "research" }, { name: "setup" }]);
     expect(captured).toBe(
       "Steps ready for parallel execution:\n- research: run agentflow context --step research\n- setup: run agentflow context --step setup\n",
     );
@@ -108,9 +105,7 @@ describe("output.stepComplete", () => {
   it("prints step complete with unblocked steps and next command", async () => {
     const { stepComplete } = await import("./output.js");
     stepComplete("research", ["plan"]);
-    expect(captured).toBe(
-      "Step complete: research\nUnblocked: plan\nRun: agentflow next\n",
-    );
+    expect(captured).toBe("Step complete: research\nUnblocked: plan\nRun: agentflow next\n");
   });
 
   it("prints multiple unblocked steps joined with comma", async () => {
@@ -154,8 +149,20 @@ describe("output.taskState", () => {
       flowName: "plan",
       active: true,
       steps: [
-        { name: "research", state: "done", generates: "research.md", generatePath: "tasks/my-feature/research.md", fileExists: true },
-        { name: "plan", state: "ready", generates: "plan.md", generatePath: "tasks/my-feature/plan.md", fileExists: false },
+        {
+          name: "research",
+          state: "done",
+          generates: "research.md",
+          generatePath: "tasks/my-feature/research.md",
+          fileExists: true,
+        },
+        {
+          name: "plan",
+          state: "ready",
+          generates: "plan.md",
+          generatePath: "tasks/my-feature/plan.md",
+          fileExists: false,
+        },
         { name: "task-breakdown", state: "blocked", requires: ["plan"] },
         { name: "implement", state: "blocked", requires: ["task-breakdown"] },
         { name: "review", state: "blocked", requires: ["implement"] },
@@ -218,7 +225,10 @@ describe("output.validationPassed", () => {
 describe("output.validationFailed", () => {
   it("prints validation failed with errors", async () => {
     const { validationFailed } = await import("./output.js");
-    validationFailed("my-flow", ["Step 'foo' requires unknown step 'bar'", "Circular dependency detected"]);
+    validationFailed("my-flow", [
+      "Step 'foo' requires unknown step 'bar'",
+      "Circular dependency detected",
+    ]);
     expect(captured).toContain("Validation failed: my-flow");
     expect(captured).toContain("Step 'foo' requires unknown step 'bar'");
     expect(captured).toContain("Circular dependency detected");
@@ -243,8 +253,6 @@ describe("output.errorWithFix", () => {
   it("prints error with fix command", async () => {
     const { errorWithFix } = await import("./output.js");
     errorWithFix("No active task found.", "agentflow start --task <name>");
-    expect(captured).toBe(
-      "Error: No active task found.\nRun: agentflow start --task <name>\n",
-    );
+    expect(captured).toBe("Error: No active task found.\nRun: agentflow start --task <name>\n");
   });
 });

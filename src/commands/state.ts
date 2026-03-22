@@ -1,13 +1,10 @@
-import * as path from "path";
-import {
-  DEFAULT_ROOT_FOLDER_NAME,
-  TASKS_FOLDER_NAME,
-} from "../constants.js";
-import * as output from "../output.js";
-import type { StepStateEntry } from "../output.js";
-import { fileExists } from "../utils/fileIo.js";
+import * as path from "node:path";
+import { DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME } from "../constants.js";
 import { loadFlow } from "../flow/index.js";
+import type { StepStateEntry } from "../output.js";
+import * as output from "../output.js";
 import { resolveTask, setActiveTask } from "../task/resolver.js";
+import { fileExists } from "../utils/fileIo.js";
 
 export type StateArgs = {
   projectRoot?: string;
@@ -41,11 +38,7 @@ export function stateCommand(args: StateArgs): void {
 
     if (stepConfig.generates) {
       // Show generates info — for all steps that have a generates field
-      const generatePath = path.join(
-        TASKS_FOLDER_NAME,
-        taskName,
-        stepConfig.generates,
-      );
+      const generatePath = path.join(TASKS_FOLDER_NAME, taskName, stepConfig.generates);
       const absoluteGeneratePath = path.join(
         projectRoot,
         DEFAULT_ROOT_FOLDER_NAME,
@@ -77,7 +70,7 @@ export function stateCommand(args: StateArgs): void {
  */
 export async function stateCommandHandler(options: { task?: string }): Promise<void> {
   try {
-    stateCommand({ taskName: options.task });
+    stateCommand({ ...(options.task !== undefined && { taskName: options.task }) });
   } catch (err) {
     output.error(err);
     process.exit(1);

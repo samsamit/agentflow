@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { parse } from "yaml";
 import {
   CONFIG_FILE_NAME,
@@ -104,11 +104,7 @@ export function listInstructionFiles(projectRoot: string, flowName: string): str
  * Lists all flow names found in agentFlow/flows/.
  */
 export function listFlowNames(projectRoot: string): string[] {
-  const flowsDir = path.join(
-    projectRoot,
-    DEFAULT_ROOT_FOLDER_NAME,
-    FLOWS_FOLDER_NAME,
-  );
+  const flowsDir = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, FLOWS_FOLDER_NAME);
   if (!fileExists(flowsDir)) return [];
   return listDirs(flowsDir);
 }
