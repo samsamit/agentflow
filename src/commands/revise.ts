@@ -1,5 +1,5 @@
 import { loadFlow } from "../flow/index.js";
-import { resolveTransitiveCascade } from "../graph/index.js";
+import { buildDependencyGraph, resolveTransitiveCascade } from "../graph/index.js";
 import * as output from "../output.js";
 import { resolveTask, setActiveTask } from "../task/index.js";
 import { writeTaskState } from "../task/io.js";
@@ -55,14 +55,27 @@ export function reviseCommand(args: ReviseArgs): void {
     },
   };
 
-  // Find all transitively dependent steps and set them to ready
+  // Find all transitively dependent steps and reset their state
   const cascaded = resolveTransitiveCascade(flow.steps, updatedSteps, stepName);
+  const depGraph = buildDependencyGraph(flow.steps);
+  const cascadedReady: string[] = [];
+  const cascadedBlocked: string[] = [];
 
   for (const name of cascaded) {
     const s = updatedSteps[name];
+    const requires = depGraph.get(name) ?? [];
+    const allDepsDone = requires.every((dep) => updatedSteps[dep]?.state === "done");
+    const newState = allDepsDone ? ("ready" as const) : ("blocked" as const);
     if (s !== undefined) {
       const { revisedBy: _revisedBy, ...rest } = s;
-      updatedSteps[name] = { ...rest, state: "ready" as const };
+      updatedSteps[name] = { ...rest, state: newState };
+    } else {
+      updatedSteps[name] = { state: newState };
+    }
+    if (newState === "ready") {
+      cascadedReady.push(name);
+    } else {
+      cascadedBlocked.push(name);
     }
   }
 
@@ -72,7 +85,7 @@ export function reviseCommand(args: ReviseArgs): void {
   // Output — maxRevisions is required by the output signature; use 0 if not set (shouldn't happen
   // in practice since we only show count/max when maxRevisions is defined, but the output.ts
   // function always accepts a number)
-  output.stepRevised(stepName, newRevisionCount, maxRevisions ?? 0, cascaded);
+  output.stepRevised(stepName, newRevisionCount, maxRevisions ?? 0, cascadedReady, cascadedBlocked);
 }
 
 /**

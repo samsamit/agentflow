@@ -189,10 +189,16 @@ export function stepRevised(
   stepName: string,
   revisionCount: number,
   maxRevisions: number,
-  cascaded: string[],
+  cascadedReady: string[],
+  cascadedBlocked: string[],
 ): void {
   write(`Step marked for revision: ${stepName} (revision ${revisionCount}/${maxRevisions})`);
-  write(`Cascaded to ready: ${cascaded.join(", ")}`);
+  if (cascadedReady.length > 0) {
+    write(`Cascaded to ready: ${cascadedReady.join(", ")}`);
+  }
+  if (cascadedBlocked.length > 0) {
+    write(`Cascaded to blocked: ${cascadedBlocked.join(", ")}`);
+  }
   write("Run: agentflow next");
 }
 

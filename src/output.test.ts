@@ -122,11 +122,27 @@ describe("output.stepComplete", () => {
 });
 
 describe("output.stepRevised", () => {
-  it("prints revision info with cascaded steps", async () => {
+  it("prints revision info with ready and blocked cascaded steps", async () => {
     const { stepRevised } = await import("./output.js");
-    stepRevised("research", 2, 3, ["plan", "task-breakdown", "implement", "review"]);
+    stepRevised("research", 2, 3, ["plan"], ["task-breakdown", "implement", "review"]);
     expect(captured).toBe(
-      "Step marked for revision: research (revision 2/3)\nCascaded to ready: plan, task-breakdown, implement, review\nRun: agentflow next\n",
+      "Step marked for revision: research (revision 2/3)\nCascaded to ready: plan\nCascaded to blocked: task-breakdown, implement, review\nRun: agentflow next\n",
+    );
+  });
+
+  it("omits ready line when no steps are ready", async () => {
+    const { stepRevised } = await import("./output.js");
+    stepRevised("research", 1, 3, [], ["plan", "implement"]);
+    expect(captured).toBe(
+      "Step marked for revision: research (revision 1/3)\nCascaded to blocked: plan, implement\nRun: agentflow next\n",
+    );
+  });
+
+  it("omits blocked line when no steps are blocked", async () => {
+    const { stepRevised } = await import("./output.js");
+    stepRevised("research", 1, 3, ["plan", "implement"], []);
+    expect(captured).toBe(
+      "Step marked for revision: research (revision 1/3)\nCascaded to ready: plan, implement\nRun: agentflow next\n",
     );
   });
 });

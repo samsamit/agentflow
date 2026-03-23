@@ -152,7 +152,7 @@ describe("reviseCommand integration", () => {
     fs.rmSync(projectRoot, { recursive: true });
   });
 
-  it("cascades all transitive dependents to ready", () => {
+  it("cascades transitive dependents to blocked when their deps are not done", () => {
     const projectRoot = makeTestProject();
 
     reviseCommand({
@@ -165,13 +165,38 @@ describe("reviseCommand integration", () => {
     const taskDir = path.join(projectRoot, "agentFlow", "tasks", "my-feature");
     const state = readTaskState(taskDir);
 
-    // All downstream of research should now be ready
-    expect(state.steps["plan-step"]?.state).toBe("ready");
-    expect(state.steps.implement?.state).toBe("ready");
-    expect(state.steps.review?.state).toBe("ready");
-
-    // research itself is in revision
+    // research is in revision (not done), so all downstream are blocked
     expect(state.steps.research?.state).toBe("revision");
+    expect(state.steps["plan-step"]?.state).toBe("blocked");
+    expect(state.steps.implement?.state).toBe("blocked");
+    expect(state.steps.review?.state).toBe("blocked");
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
+  it("cascades a step to ready when all its deps are still done", () => {
+    const projectRoot = makeTestProject();
+
+    // Override: research and plan-step are done, implement needs revision
+    // review requires only implement, so review should be blocked
+    // But if we had a parallel step with all-done deps, it'd be ready
+    // Here: revise plan-step — implement depends on plan-step (not done), review depends on implement
+    reviseCommand({
+      projectRoot,
+      stepName: "implement",
+      fromStep: "review",
+      taskName: "my-feature",
+    });
+
+    const taskDir = path.join(projectRoot, "agentFlow", "tasks", "my-feature");
+    const state = readTaskState(taskDir);
+
+    // implement is revision; review depends on implement (not done) → blocked
+    expect(state.steps.implement?.state).toBe("revision");
+    expect(state.steps.review?.state).toBe("blocked");
+    // upstream steps untouched
+    expect(state.steps.research?.state).toBe("done");
+    expect(state.steps["plan-step"]?.state).toBe("done");
 
     fs.rmSync(projectRoot, { recursive: true });
   });

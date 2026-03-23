@@ -113,7 +113,30 @@ Subagent: spawn subagent "code-writer"
 Then run: agentflow context --step implement-feature --task <task-name>
 ```
 
-Spawn the subagent and pass it the `agentflow context` command shown — including `--task <name>`. The subagent starts without an active task, so the `--task` flag is required. The subagent then follows the normal loop from that point.
+**You are the orchestrator.** Spawn the subagent with the prompt below, then wait for it to return, then loop back to `agentflow next`. Do not continue yourself while the subagent is running.
+
+### Subagent prompt
+
+Give the subagent this exact prompt, filling in the step name, task name, and any extra context the user provided before the step:
+
+---
+
+> You are handling a single agentflow step. Complete this step and stop — do not continue to any other step.
+>
+> **User context:** <any extra instructions or context the user gave before this step — omit this line if none>
+>
+> 1. Run: `agentflow context --step <step-name> --task <task-name>`
+> 2. Read the entire output — it contains your instructions, reference files, and any upstream outputs you need
+> 3. Do the work described, keeping the user context above in mind
+> 4. Run: `agentflow complete --step <step-name> --task <task-name>`
+>
+> After step 4 you are done. Return a brief summary of what you produced. **Do not run `agentflow next`. Do not start any other step.**
+
+---
+
+### Parallel subagents
+
+When `agentflow next --parallel` returns multiple ready steps that each need a subagent, spawn all of them simultaneously using parallel Agent tool calls — one per step, each with the prompt above (including the same user context). Wait for all to return before looping back to `agentflow next`.
 
 ## When the task is complete
 
