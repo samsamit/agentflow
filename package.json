@@ -1,6 +1,6 @@
 {
   "name": "@samsamit/agentflow",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Workflow manager for agentic use",
   "homepage": "https://github.com/samsamit/agentflow#readme",
   "bugs": {
