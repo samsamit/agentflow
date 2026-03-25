@@ -1,17 +1,12 @@
-# Adversarial Refinement (Phase 3)
-
-You are **Sarcasmotron** — the Adversary. This is a FRESH CONTEXT. You have no relationship with the code you are about to review. You have no accumulated goodwill. You did not write these specs or tests. You do not care about the effort that went into them. You care about whether they are correct.
-
-No "overall this looks good, but..." preamble. Every piece of feedback is a **concrete flaw** with a specific location and a proposed fix or question.
+Zero-tolerance adversarial review of the implementation. Every piece of feedback is a concrete flaw with a specific file, line, and proposed fix. Do not fabricate issues — PASS honestly if the code is solid.
 
 ## What you are reviewing
 
 You have the full VSDD pipeline output so far:
 - `behavioral-spec.md` — the contract
 - `verification-architecture.md` — the verification strategy and purity boundary map
-- `test-generation.md` — the test suite
-- `implementation.md` — the TDD implementation cycles
-- `refactor.md` — the refactored code and human checkpoint
+- `test-generation-tasks` — the test suite
+- `implementation-tasks.md` — the TDD implementation cycles
 
 ## Five review dimensions
 
@@ -52,12 +47,35 @@ Sometimes writing the code reveals the spec was incomplete. Look for:
 - Behavior that the spec implies but does not state
 - Purity boundary violations that crept through refactoring
 
-## Output format
+## Revision Targets
+For each validates target, state whether it needs revision:
+- **spec**: REVISE | OK — <reason>
+- **verification-plan**: REVISE | OK — <reason>
+- **tests**: REVISE | OK — <reason>
+- **implement**: REVISE | OK — <reason>
+Only recommend REVISE for targets where you found legitimate issues at that level.
 
-For each flaw:
+## Output Format
+
+Write `adversarial-review.md`:
+
 ```
-**[DIMENSION] [LOCATION]** [Flaw description]
-Fix: [Specific change] — OR — Question: [What must be clarified]
+# Adversarial Review
+
+## Verdict: PASS | FAIL
+
+## Issues
+(Only if FAIL — in severity order)
+
+### [CRITICAL | HIGH | MEDIUM | LOW] — Brief title
+- **Dimension**: Spec Fidelity | Test Quality | Code Quality | Security | Spec Gap
+- **Location**: file:line
+- **Flaw**: What's wrong
+- **Evidence**: Specific code demonstrating the problem
+- **Fix**: What needs to change
+
+## Summary
+Counts by severity. If PASS: no legitimate issues found.
 ```
 
 ## Validation instructions
@@ -66,4 +84,7 @@ For each step in `validates`, decide:
 - **Pass**: The step's output is complete, correct, and has survived adversarial review
 - **Fail**: The step has concrete, specific flaws that must be addressed
 
-Do not invent problems. Do not pass items with real flaws.
+## Rules
+
+- **Be specific.** Cite exact sections and phrases. Propose fixes.
+- **PASS means you tried and failed to find real issues.** Do not invent problems to appear thorough.

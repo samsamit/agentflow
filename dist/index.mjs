@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { n as flowConfigSchema, r as rootConfigSchema, t as generateFlowSchema } from "./schema-DfmkzlwG.mjs";
+import { n as flowConfigSchema, r as rootConfigSchema } from "./schema-CdpMUXwq.mjs";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -7,6 +7,7 @@ import { parse, stringify } from "yaml";
 import { z } from "zod";
 import { fileURLToPath } from "node:url";
 import { checkbox, select } from "@inquirer/prompts";
+import * as os from "node:os";
 //#region src/constants.ts
 const DEFAULT_ROOT_FOLDER_NAME = "agentFlow";
 const CONFIG_FILE_NAME = ".agentflow.yaml";
@@ -14,7 +15,7 @@ const FLOWS_FOLDER_NAME = "flows";
 const TASKS_FOLDER_NAME = "tasks";
 const TASK_STATE_FILE_NAME = ".taskState.yaml";
 const INSTRUCTIONS_FOLDER_NAME = "instructions";
-const SCHEMA_FILE_NAME = "agentflow-flow.schema.json";
+const SCHEMA_CDN_URL = `https://cdn.jsdelivr.net/npm/@samsamit/agentflow@latest/schema/agentflow-flow.schema.json`;
 const SKILLS_FOLDER_NAME = "skills";
 const SKILL_NAME = "agentflow";
 const SKILL_FILE_NAME = "SKILL.md";
@@ -82,13 +83,15 @@ function listDirs(dirPath) {
 /**
 * Recursively copies all files from sourceDir into destDir.
 * Creates destDir if it does not exist.
+* Entries whose names appear in `exclude` are skipped (top-level only).
 * Throws if sourceDir does not exist.
 */
-function copyDirRecursive(sourceDir, destDir) {
+function copyDirRecursive(sourceDir, destDir, exclude = []) {
 	if (!fs.existsSync(sourceDir)) throw new Error(`Source directory not found: ${sourceDir}`);
 	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
 	const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
 	for (const entry of entries) {
+		if (exclude.includes(entry.name)) continue;
 		const srcPath = path.join(sourceDir, entry.name);
 		const dstPath = path.join(destDir, entry.name);
 		if (entry.isDirectory()) copyDirRecursive(srcPath, dstPath);
@@ -234,6 +237,18 @@ function validateProject(rootValid, flowsFolderExists, tasksFolderExists, flows)
 }
 //#endregion
 //#region src/graph/index.ts
+/**
+* Pure graph functions for ChainFlow.
+* No filesystem access, no process.cwd(). Fully testable with in-memory data.
+*/
+/**
+* Maps each step name → its `requires` list.
+*/
+function buildDependencyGraph(steps) {
+	const graph = /* @__PURE__ */ new Map();
+	for (const step of steps) graph.set(step.name, step.requires ?? []);
+	return graph;
+}
 /**
 * Maps each step name → names of steps that depend on it (reverse edges).
 */
@@ -405,14 +420,18 @@ function nextParallel(steps, taskName) {
 function stepContext(content) {
 	write(content);
 }
+function stepContextTokens(tokenCount) {
+	write(`Tokens: ~${tokenCount}`);
+}
 function stepComplete(stepName, unblocked) {
 	write(`Step complete: ${stepName}`);
 	if (unblocked.length > 0) write(`Unblocked: ${unblocked.join(", ")}`);
 	write("Run: agentflow next");
 }
-function stepRevised(stepName, revisionCount, maxRevisions, cascaded) {
+function stepRevised(stepName, revisionCount, maxRevisions, cascadedReady, cascadedBlocked) {
 	write(`Step marked for revision: ${stepName} (revision ${revisionCount}/${maxRevisions})`);
-	write(`Cascaded to ready: ${cascaded.join(", ")}`);
+	if (cascadedReady.length > 0) write(`Cascaded to ready: ${cascadedReady.join(", ")}`);
+	if (cascadedBlocked.length > 0) write(`Cascaded to blocked: ${cascadedBlocked.join(", ")}`);
 	write("Run: agentflow next");
 }
 function revisionIgnored(stepName, maxRevisions) {
@@ -759,7 +778,7 @@ function contextCommand(args) {
 	const flow = loadFlow(projectRoot, taskState.flow);
 	const stepState = taskState.steps[args.stepName];
 	if (stepState === void 0) throw new Error(`Step "${args.stepName}" not found in task "${taskName}".`);
-	stepContext(assembleContext({
+	const content = assembleContext({
 		stepName: args.stepName,
 		taskName,
 		flowName: taskState.flow,
@@ -767,7 +786,9 @@ function contextCommand(args) {
 		flow,
 		stepState,
 		taskStepStates: taskState.steps
-	}));
+	});
+	if (args.tokens === true) stepContextTokens(Math.ceil(content.length / 4));
+	else stepContext(content);
 }
 /**
 * CLI handler for `agentflow context`.
@@ -776,12 +797,39 @@ async function contextCommandHandler(options) {
 	try {
 		contextCommand({
 			stepName: options.step,
-			...options.task !== void 0 && { taskName: options.task }
+			...options.task !== void 0 && { taskName: options.task },
+			...options.tokens === true && { tokens: true }
 		});
 	} catch (err) {
 		error(err);
 		process.exit(1);
 	}
+}
+//#endregion
+//#region src/ide/claude-code.ts
+const AGENTFLOW_PERMISSIONS = ["Bash(npx agentflow:*)", "Bash(agentflow:*)"];
+/**
+* Merges agentflow Bash permission rules into ~/.claude/settings.json.
+* Creates the file if it doesn't exist. Skips rules already present.
+* Returns the absolute path of the settings file written.
+*/
+function writeClaudeCodePermissions() {
+	const settingsPath = path.join(os.homedir(), ".claude", "settings.json");
+	let settings = {};
+	if (fs.existsSync(settingsPath)) try {
+		settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+	} catch {
+		settings = {};
+	}
+	if (typeof settings.permissions !== "object" || settings.permissions === null) settings.permissions = {};
+	const permissions = settings.permissions;
+	if (!Array.isArray(permissions.allow)) permissions.allow = [];
+	const allow = permissions.allow;
+	for (const rule of AGENTFLOW_PERMISSIONS) if (!allow.includes(rule)) allow.push(rule);
+	const dir = path.dirname(settingsPath);
+	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+	fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
+	return settingsPath;
 }
 //#endregion
 //#region src/ide/jetbrains.ts
@@ -913,10 +961,6 @@ async function init() {
 		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
 		createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
 		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
-		initSection("Generating flow JSON schema");
-		const schemaDir = path.join(currentDir, "schema");
-		generateFlowSchema(path.join(schemaDir, SCHEMA_FILE_NAME));
-		initCreated(`schema/${SCHEMA_FILE_NAME}`);
 		let selectedFlows = [];
 		const bundledFlowsDir = getBundledFlowsDir();
 		if (bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
@@ -932,14 +976,13 @@ async function init() {
 					}))
 				});
 				if (selectedFlows.length > 0) for (const flowName of selectedFlows) {
-					copyDirRecursive(path.join(bundledFlowsDir, flowName), path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName));
+					copyDirRecursive(path.join(bundledFlowsDir, flowName), path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName), [AGENTS_FOLDER_NAME]);
 					initCreated(`flows/${flowName}/`);
 				}
 				else initSkipped("No flows selected");
 			}
 		}
 		initSection("IDE integration");
-		const schemaRelativePath = `schema/${SCHEMA_FILE_NAME}`;
 		const ideChoice = await select({
 			message: "Select your IDE for YAML schema support:",
 			choices: [
@@ -962,13 +1005,13 @@ async function init() {
 			]
 		});
 		if (ideChoice === "vscode") {
-			const settingsPath = writeVsCodeSettings(currentDir, schemaRelativePath);
+			const settingsPath = writeVsCodeSettings(currentDir, SCHEMA_CDN_URL);
 			initCreated(path.relative(currentDir, settingsPath));
 		} else if (ideChoice === "jetbrains") {
-			const xmlPath = writeJetBrainsSchema(currentDir, schemaRelativePath);
+			const xmlPath = writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL);
 			initCreated(path.relative(currentDir, xmlPath));
 		} else if (ideChoice === "zed") {
-			const settingsPath = writeZedSettings(currentDir, schemaRelativePath);
+			const settingsPath = writeZedSettings(currentDir, SCHEMA_CDN_URL);
 			initCreated(path.relative(currentDir, settingsPath));
 		} else initSkipped("IDE configuration skipped");
 		initSection("AI tool integration");
@@ -1004,6 +1047,7 @@ async function init() {
 					fs.copyFileSync(bundledSkillFile, skillDestPath);
 					initCreated(path.relative(currentDir, skillDestPath));
 				} else initWarning("Bundled skill file not found — skipping");
+				if (aiToolChoice === "claude-code") initCreated(`${writeClaudeCodePermissions()} (permissions)`);
 				if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
 					const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
 					for (const flowName of selectedFlows) {
@@ -1194,21 +1238,27 @@ function reviseCommand(args) {
 		}
 	};
 	const cascaded = resolveTransitiveCascade(flow.steps, updatedSteps, stepName);
+	const depGraph = buildDependencyGraph(flow.steps);
+	const cascadedReady = [];
+	const cascadedBlocked = [];
 	for (const name of cascaded) {
 		const s = updatedSteps[name];
+		const newState = (depGraph.get(name) ?? []).every((dep) => updatedSteps[dep]?.state === "done") ? "ready" : "blocked";
 		if (s !== void 0) {
 			const { revisedBy: _revisedBy, ...rest } = s;
 			updatedSteps[name] = {
 				...rest,
-				state: "ready"
+				state: newState
 			};
-		}
+		} else updatedSteps[name] = { state: newState };
+		if (newState === "ready") cascadedReady.push(name);
+		else cascadedBlocked.push(name);
 	}
 	writeTaskState(taskDir, {
 		...taskState,
 		steps: updatedSteps
 	});
-	stepRevised(stepName, newRevisionCount, maxRevisions ?? 0, cascaded);
+	stepRevised(stepName, newRevisionCount, maxRevisions ?? 0, cascadedReady, cascadedBlocked);
 }
 /**
 * CLI command handler for `agentflow revise`.
@@ -1370,7 +1420,7 @@ program.command("init").description("Initialize agentflow in the current directo
 program.command("validate").description("Validate project config and flows").option("--flow <name>", "validate a single flow by name").action((options) => validateCommand(options));
 program.command("start").description("Create a new task and set it as active").requiredOption("--task <name>", "task name").option("--flow <name>", "flow name (defaults to defaultFlow)").action((options) => startCommandHandler(options));
 program.command("next").description("Get the next step(s) to work on").option("--task <name>", "task name (sets as active if given)").option("--parallel", "return all currently ready steps").action((options) => nextCommandHandler(options));
-program.command("context").description("Output full context for a step to inject into an agent prompt").requiredOption("--step <name>", "step name").option("--task <name>", "task name (sets as active if given)").action((options) => contextCommandHandler(options));
+program.command("context").description("Output full context for a step to inject into an agent prompt").requiredOption("--step <name>", "step name").option("--task <name>", "task name (sets as active if given)").option("--tokens", "output estimated token count instead of full context").action((options) => contextCommandHandler(options));
 program.command("state").description("Show the current state of all steps in a task").option("--task <name>", "task name (defaults to active task)").action((options) => stateCommandHandler(options));
 program.command("complete").description("Mark a step as done and unblock downstream steps").requiredOption("--step <name>", "step name").option("--task <name>", "task name (sets as active if given)").action((options) => completeCommandHandler(options));
 program.command("revise").description("Mark a step for revision and cascade downstream").requiredOption("--step <name>", "step name").requiredOption("--from <step>", "step triggering the revision").option("--task <name>", "task name (sets as active if given)").action((options) => reviseCommandHandler(options));

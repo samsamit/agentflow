@@ -1,44 +1,21 @@
 ---
 name: agentflow
-description: Agentflow is a workflow engine that manages step order, injects all context, and tracks state for AI agents. Always use this skill when agentflow is involved — it tells you exactly what to do and when. Never explore the project yourself when agentflow is running; the tool provides everything you need.
-user-invocable: true
+description: Use this skill whenever you see a agentFlow/ directory in a project, when the user asks you to work on a task using agentflow, or when any agentflow command appears (agentflow start, agentflow next, agentflow context, agentflow complete, agentflow revise, agentflow state). Agentflow is a workflow engine that manages step order, injects all context, and tracks state for AI agents. Always use this skill when agentflow is involved — it tells you exactly what to do and when. Never explore the project yourself when agentflow is running; the tool provides everything you need.
 ---
 
 # Agentflow
 
 Agentflow is a CLI workflow engine for AI agents. It tells you what step to work on, injects all the context you need, and tracks state. **Never explore the project yourself when agentflow is running** — if something seems missing, it is a flow config issue, not something you should work around.
 
-## Getting started
-
-Before jumping into the loop, orient yourself:
-
-1. **Check for an existing task** — run `agentflow list tasks` to see if there's already an active task the user wants to resume. If there is, go straight to the loop.
-2. **Start a new task if needed** — run `agentflow start --task <name> [--flow <name>]`. Use a short slug for the task name derived from the user's request (e.g., `auth-module`, `payment-refactor`). If `--flow` is omitted, agentflow uses the project's default flow. Run `agentflow list flows` to see available flows if you're unsure which to use.
-3. **Choose a mode** — see the section below.
-
-If `agentFlow/` doesn't exist at all, the project hasn't been initialized yet. Run `agentflow init` and wait for it to complete before doing anything else.
-
-## Modes
-
-How you run the loop depends on what the user wants:
-
-**Autonomous mode** (default): Loop continuously from start to finish without pausing between steps. Spawn subagents whenever the flow requires them. Keep going until `agentflow next` reports the task is complete. This is the right call when the user says "run it", "go", "run everything", "do the whole flow", or when the flow has many steps and named subagents — stopping after every step would just slow things down without adding value.
-
-**Step-by-step mode**: Complete one step, then stop. After each `agentflow complete`, report what you just finished and what's coming next, then wait for the user to say "continue", "next", or "keep going". Use this when the user says "step by step", "one at a time", "walk me through it", or wants to review or approve each output before proceeding.
-
-When the user's intent is ambiguous, default to autonomous. If they want to slow down at any point they can say so.
-
 ## The agent loop
 
-The loop is the same in both modes — what changes is whether you pause after each step:
+This is the loop you follow for every task, every time:
 
-1. **`agentflow next`** — find out which step to work on next
-2. **`agentflow context --step <name>`** — get full instructions, reference files, and upstream outputs for that step; read the entire output before starting
+1. **`agentflow next`** — find out which step to work on
+2. **`agentflow context --step <name>`** — get full instructions, references, and upstream outputs for that step
 3. **Do the work** — follow the instructions exactly as given
-4. **`agentflow complete --step <name>`** — mark the step done; agentflow automatically unblocks downstream steps
-5. **Continue or pause**:
-   - *Autonomous*: go back to step 1
-   - *Step-by-step*: report what was completed and what's next, then stop and wait
+4. **`agentflow complete --step <name>`** — mark the step done; agentflow unblocks downstream steps automatically
+5. **Repeat from 1** until agentflow reports the task is complete
 
 The last line of every `agentflow context` output is the exact `agentflow complete` command to run — use it verbatim.
 
@@ -55,7 +32,7 @@ blocked → ready → done
 - **done** — completed
 - **revision** — a validator step flagged it; rework required
 
-When a step is in `revision` state, `agentflow context` automatically injects the previous output and reviewer feedback. Just follow the loop — revision steps work the same as normal steps.
+When a step is in `revision` state, `agentflow context` automatically injects the previous output and reviewer feedback. Just follow the loop — revision steps are handled the same way as normal steps.
 
 ## Commands
 
@@ -136,11 +113,11 @@ Subagent: spawn subagent "code-writer"
 Then run: agentflow context --step implement-feature --task <task-name>
 ```
 
-**You are the orchestrator.** Spawn the subagent with the prompt below, then wait for it to return, then loop back to `agentflow next`. The subagent handles only that one step — it never calls `agentflow next` or advances the flow on its own.
+**You are the orchestrator.** Spawn the subagent with the prompt below, then wait for it to return, then loop back to `agentflow next`. Do not continue yourself while the subagent is running.
 
 ### Subagent prompt
 
-Give the subagent this exact prompt, filling in the step name, task name, and any extra context the user provided:
+Give the subagent this exact prompt, filling in the step name, task name, and any extra context the user provided before the step:
 
 ---
 
@@ -152,9 +129,8 @@ Give the subagent this exact prompt, filling in the step name, task name, and an
 > 2. Read the entire output — it contains your instructions, reference files, and any upstream outputs you need
 > 3. Do the work described, keeping the user context above in mind
 > 4. Run: `agentflow complete --step <step-name> --task <task-name>`
-> 5. If the context output instructed something like "Then run: agentflow revise --step <failing-step> --from <validator-step>", run that command for each failing step as well
 >
-> After step 5 you are done. Return a brief summary of what you produced. **Do not run `agentflow next`. Do not start any other step.**
+> After step 4 you are done. Return a brief summary of what you produced. **Do not run `agentflow next`. Do not start any other step.**
 
 ---
 
@@ -176,8 +152,7 @@ Stop the loop. Do not call `agentflow next` again.
 ## Key principles
 
 - **Agentflow tells you everything.** Do not read files or explore the project to fill gaps.
-- **Orient before looping.** Check for an existing task and choose a mode before running the first `agentflow next`.
-- **Follow the loop.** `next` → `context` → work → `complete` → repeat (or pause in step-by-step).
+- **Follow the loop.** `next` → `context` → work → `complete` → repeat.
 - **Use exact commands.** The last line of `agentflow context` output is the exact completion command.
 - **`--task` switches context.** Any command that accepts `--task <name>` sets that task active.
 - **Subagents need `--task`.** A spawned subagent has no active task — always pass `--task <name>`.

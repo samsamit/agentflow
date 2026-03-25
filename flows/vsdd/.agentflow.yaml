@@ -5,7 +5,6 @@ description: >
   Development (VDD) into a single AI-orchestrated pipeline with formal
   verification gates.
 maxRevisions: 5
-
 steps:
   # ─── PHASE 1: Spec Crystallization ────────────────────────────────────────
 
@@ -60,7 +59,8 @@ steps:
     subagent: builder
     requires:
       - spec-review
-    generates: test-generation.md
+    generates: test-generation-tasks.md
+    tasks: test-generation-tasks.md
     generateStrategy: replace
     context:
       instructions: test-generation.md
@@ -75,7 +75,8 @@ steps:
     subagent: builder
     requires:
       - test-generation
-    generates: implementation.md
+    generates: implementation-tasks.md
+    tasks: implementation-tasks.md
     generateStrategy: update
     context:
       instructions: implementation.md
@@ -83,23 +84,6 @@ steps:
         - behavioral-spec
         - verification-architecture
         - test-generation
-    validates: []
-
-  - name: refactor
-    description: "Phase 2c: Refactor for clarity and NFRs; purity audit; human checkpoint"
-    required: true
-    subagent: builder
-    requires:
-      - implementation
-    generates: refactor.md
-    generateStrategy: replace
-    context:
-      instructions: refactor.md
-      steps:
-        - behavioral-spec
-        - verification-architecture
-        - test-generation
-        - implementation
     validates: []
 
   # ─── PHASE 3: Adversarial Refinement ──────────────────────────────────────
@@ -127,32 +111,7 @@ steps:
       - implementation
       - refactor
 
-  # ─── PHASE 4: Feedback Integration Loop ───────────────────────────────────
-
-  - name: feedback-integration
-    description: "Phase 4: Triage adversarial critique, route each finding to the correct upstream step"
-    required: true
-    subagent: builder
-    requires:
-      - adversarial-review
-    generates: feedback-integration.md
-    generateStrategy: replace
-    context:
-      instructions: feedback-integration.md
-      steps:
-        - adversarial-review
-        - behavioral-spec
-        - verification-architecture
-        - test-generation
-        - implementation
-    validates:
-      - behavioral-spec
-      - verification-architecture
-      - test-generation
-      - implementation
-      - refactor
-
-  # ─── PHASE 5: Formal Hardening ────────────────────────────────────────────
+  # ─── PHASE 4: Formal Hardening ────────────────────────────────────────────
 
   - name: formal-hardening
     description: "Phase 5: Execute verification plan — proofs, fuzzing, security scanning, mutation testing, purity audit"

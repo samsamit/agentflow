@@ -1,6 +1,8 @@
 {
   "permissions": {
     "allow": [
+      "Edit",
+      "Write",
       "Bash(find /c/Users/samut/Documents/PROJECTS/agent-chain-flow/src -type f -name *.ts -o -name *.js)",
       "Bash(tree -L 3 /c/Users/samut/Documents/PROJECTS/agent-chain-flow --ignore node_modules)",
       "Bash(find /c/Users/samut/Documents/PROJECTS/agent-chain-flow -not -path */node_modules* -not -path */.git* -type f)",
@@ -8,8 +10,14 @@
       "Bash(npm install:*)",
       "Bash(npx vitest:*)",
       "Bash(npm run:*)",
+      "Bash(npx agentflow:*)",
+      "Bash(git:*)",
       "WebSearch",
-      "Bash(npm show:*)"
+      "Bash(npm show:*)",
+      "Skill(update-config)",
+      "Bash(cp:*)",
+      "Bash(agentflow --version)",
+      "Bash(agentflow:*)"
     ]
   }
 }

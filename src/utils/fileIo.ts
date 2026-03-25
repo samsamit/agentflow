@@ -118,9 +118,14 @@ export function copyFile(sourcePath: string, destPath: string): void {
 /**
  * Recursively copies all files from sourceDir into destDir.
  * Creates destDir if it does not exist.
+ * Entries whose names appear in `exclude` are skipped (top-level only).
  * Throws if sourceDir does not exist.
  */
-export function copyDirRecursive(sourceDir: string, destDir: string): void {
+export function copyDirRecursive(
+  sourceDir: string,
+  destDir: string,
+  exclude: string[] = [],
+): void {
   if (!fs.existsSync(sourceDir)) {
     throw new Error(`Source directory not found: ${sourceDir}`);
   }
@@ -129,6 +134,7 @@ export function copyDirRecursive(sourceDir: string, destDir: string): void {
   }
   const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
   for (const entry of entries) {
+    if (exclude.includes(entry.name)) continue;
     const srcPath = path.join(sourceDir, entry.name);
     const dstPath = path.join(destDir, entry.name);
     if (entry.isDirectory()) {

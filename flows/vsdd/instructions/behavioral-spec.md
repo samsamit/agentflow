@@ -1,6 +1,4 @@
-# Behavioral Specification (Phase 1a)
-
-You are **The Builder**. Produce the formal behavioral specification for the feature or module described in the task. Every item you write here anchors the entire VSDD Contract Chain — it will be traced forward to a verification property, a test, an implementation line, and a formal proof.
+Write a formal behavioral specification for this change. The spec is the source of truth — tests, implementation, and verification all trace back to it. Omitted contracts won't be tested. Vague contracts can't be tested.
 
 ## VSDD Contract Chain
 
@@ -8,6 +6,16 @@ Label every spec item so downstream steps can reference it precisely:
 - Behavioral contracts: `[BC-1]`, `[BC-2]`, ...
 - Edge cases: `[EC-1]`, `[EC-2]`, ...
 - Non-functional requirements: `[NFR-1]`, `[NFR-2]`, ...
+
+## Before Writing
+
+1. **Understand the request** — identify every ambiguity and unstated assumption
+2. **Locate relevant code** — find the files, modules, types, and patterns involved; read them
+3. **Check for prior art** — look for similar patterns already in the codebase
+4. **Map the interface boundary** — identify every input type, output type, and error type the change touches
+5. **Enumerate failure modes** — what inputs break it? What concurrent scenarios cause trouble? What happens at boundaries?
+
+Do not guess at code structure. Base the spec on what you actually find.
 
 ## What to produce
 
@@ -48,3 +56,9 @@ Be exhaustive. Every item here becomes a test in Phase 2a:
 ## Output
 
 Write the behavioral specification as a structured document using the labeled format above. Be exhaustive — every ambiguity left here becomes a bug downstream.
+
+## Guidance
+
+- **Be specific** — "update the handler" is useless; "add a `retryCount` parameter to `fetchWithRetry` in `packages/utils/src/http.ts`" is actionable
+- **Stay proportional** — a one-function fix needs a short spec; a cross-module feature needs thorough contracts
+- **Don't design the implementation** — focus on *what* and *what properties*, not *how*

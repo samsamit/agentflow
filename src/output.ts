@@ -177,6 +177,10 @@ export function stepContext(content: string): void {
   write(content);
 }
 
+export function stepContextTokens(tokenCount: number): void {
+  write(`Tokens: ~${tokenCount}`);
+}
+
 export function stepComplete(stepName: string, unblocked: string[]): void {
   write(`Step complete: ${stepName}`);
   if (unblocked.length > 0) {

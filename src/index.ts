@@ -45,7 +45,8 @@ program
   .description("Output full context for a step to inject into an agent prompt")
   .requiredOption("--step <name>", "step name")
   .option("--task <name>", "task name (sets as active if given)")
-  .action((options: { step: string; task?: string }) => contextCommandHandler(options));
+  .option("--tokens", "output estimated token count instead of full context")
+  .action((options: { step: string; task?: string; tokens?: boolean }) => contextCommandHandler(options));
 
 program
   .command("state")

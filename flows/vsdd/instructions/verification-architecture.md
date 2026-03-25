@@ -1,10 +1,15 @@
-# Verification Architecture (Phase 1b)
-
-You are **The Builder**. Using the behavioral spec, design the verification strategy *before* any implementation begins. This decision shapes module boundaries, dependency direction, and the testing strategy for all subsequent phases.
+Design the verification architecture for this change. This determines which properties must be formally provable and what architectural constraints that imposes. Verification requirements shape module boundaries, dependency direction, and state flow — this must be decided before implementation.
 
 ## VSDD Contract Chain
 
 Map every provable property back to a labeled spec item from `behavioral-spec.md` (e.g., `[BC-2]`, `[NFR-1]`). Label verification properties as `[VP-1]`, `[VP-2]`, etc.
+
+## Before Writing
+
+1. **Read `behavioral-spec.md`** — identify every behavioral contract, invariant, and edge case
+2. **Classify properties** — for each contract item, decide: must it be formally proven (critical path, security, financial), or is test coverage sufficient?
+3. **Identify side effects** — map which parts involve I/O, database access, network calls, or mutable shared state
+4. **Survey verification tools** — based on the language and runtime, identify available formal verification, fuzzing, or property-testing tools
 
 ## What to produce
 
@@ -61,3 +66,9 @@ These are not implementation — they are the formal encoding of what the behavi
 ## Output
 
 Write the verification architecture document using labeled properties (`[VP-N]`). Every property must trace to at least one spec item from `behavioral-spec.md`.
+
+## Guidance
+
+- **Verification-first architecture** — provability shapes the design. If you can't verify it, the architecture is wrong.
+- **Be honest about proof vs. tests** — not everything needs formal verification. Justify the boundary.
+- **Tool constraints are architectural constraints** — if your verification tool can't handle async code, that shapes async boundaries

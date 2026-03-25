@@ -7,6 +7,7 @@ export type ContextArgs = {
   projectRoot?: string;
   stepName: string;
   taskName?: string;
+  tokens?: boolean;
 };
 
 /**
@@ -38,7 +39,11 @@ export function contextCommand(args: ContextArgs): void {
     taskStepStates: taskState.steps,
   });
 
-  output.stepContext(content);
+  if (args.tokens === true) {
+    output.stepContextTokens(Math.ceil(content.length / 4));
+  } else {
+    output.stepContext(content);
+  }
 }
 
 /**
@@ -47,11 +52,13 @@ export function contextCommand(args: ContextArgs): void {
 export async function contextCommandHandler(options: {
   step: string;
   task?: string;
+  tokens?: boolean;
 }): Promise<void> {
   try {
     contextCommand({
       stepName: options.step,
       ...(options.task !== undefined && { taskName: options.task }),
+      ...(options.tokens === true && { tokens: true }),
     });
   } catch (err) {
     output.error(err);

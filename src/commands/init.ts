@@ -8,17 +8,17 @@ import {
   CONFIG_FILE_NAME,
   DEFAULT_ROOT_FOLDER_NAME,
   FLOWS_FOLDER_NAME,
-  SCHEMA_FILE_NAME,
+  SCHEMA_CDN_URL,
   SKILL_FILE_NAME,
   SKILL_NAME,
   SKILLS_FOLDER_NAME,
   TASKS_FOLDER_NAME,
 } from "../constants.js";
+import { writeClaudeCodePermissions } from "../ide/claude-code.js";
 import { writeJetBrainsSchema } from "../ide/jetbrains.js";
 import { writeVsCodeSettings } from "../ide/vscode.js";
 import { writeZedSettings } from "../ide/zed.js";
 import * as output from "../output.js";
-import { generateFlowSchema } from "../schema/index.js";
 import configTemplate from "../templates/config.yaml";
 import {
   copyDirRecursive,
@@ -87,13 +87,6 @@ export async function init() {
     createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
     output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
 
-    // --- Generate JSON schema ---
-    output.initSection("Generating flow JSON schema");
-    const schemaDir = path.join(currentDir, "schema");
-    const schemaOutputPath = path.join(schemaDir, SCHEMA_FILE_NAME);
-    generateFlowSchema(schemaOutputPath);
-    output.initCreated(`schema/${SCHEMA_FILE_NAME}`);
-
     // --- Copy bundled flows ---
     let selectedFlows: string[] = [];
     const bundledFlowsDir = getBundledFlowsDir();
@@ -110,7 +103,7 @@ export async function init() {
           for (const flowName of selectedFlows) {
             const src = path.join(bundledFlowsDir, flowName);
             const dest = path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName);
-            copyDirRecursive(src, dest);
+            copyDirRecursive(src, dest, [AGENTS_FOLDER_NAME]);
             output.initCreated(`flows/${flowName}/`);
           }
         } else {
@@ -121,7 +114,6 @@ export async function init() {
 
     // --- IDE config ---
     output.initSection("IDE integration");
-    const schemaRelativePath = `schema/${SCHEMA_FILE_NAME}`;
 
     const ideChoice = await select<string>({
       message: "Select your IDE for YAML schema support:",
@@ -134,13 +126,13 @@ export async function init() {
     });
 
     if (ideChoice === "vscode") {
-      const settingsPath = writeVsCodeSettings(currentDir, schemaRelativePath);
+      const settingsPath = writeVsCodeSettings(currentDir, SCHEMA_CDN_URL);
       output.initCreated(path.relative(currentDir, settingsPath));
     } else if (ideChoice === "jetbrains") {
-      const xmlPath = writeJetBrainsSchema(currentDir, schemaRelativePath);
+      const xmlPath = writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL);
       output.initCreated(path.relative(currentDir, xmlPath));
     } else if (ideChoice === "zed") {
-      const settingsPath = writeZedSettings(currentDir, schemaRelativePath);
+      const settingsPath = writeZedSettings(currentDir, SCHEMA_CDN_URL);
       output.initCreated(path.relative(currentDir, settingsPath));
     } else {
       output.initSkipped("IDE configuration skipped");
@@ -171,6 +163,12 @@ export async function init() {
           output.initCreated(path.relative(currentDir, skillDestPath));
         } else {
           output.initWarning("Bundled skill file not found — skipping");
+        }
+
+        // Permissions — add agentflow Bash rules to ~/.claude/settings.json (Claude Code only)
+        if (aiToolChoice === "claude-code") {
+          const claudeSettingsPath = writeClaudeCodePermissions();
+          output.initCreated(`${claudeSettingsPath} (permissions)`);
         }
 
         // Agent injection — install agent files bundled with each selected flow
