@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Agent reads the task state to check the step's current state",
+      "passed": true,
+      "evidence": "Transcript confirms reading .taskState.yaml; output reports 'state: revision, revisionCount: 1'"
+    },
+    {
+      "text": "Agent correctly identifies test-generation is NOT in done state",
+      "passed": true,
+      "evidence": "Output: 'The test-generation step in the active task (navbar, flow: vsdd) has state revision, not done'"
+    },
+    {
+      "text": "Agent informs user that only completed steps can be optimized",
+      "passed": true,
+      "evidence": "Output: 'only completed (done) steps can be optimized, because optimization requires a stable artifact'"
+    },
+    {
+      "text": "Agent stops without presenting optimization points",
+      "passed": true,
+      "evidence": "No numbered optimization list in output; agent stopped after stop-condition message"
+    },
+    {
+      "text": "No instruction files are modified during the run",
+      "passed": true,
+      "evidence": "No Edit tool calls; agent stopped before any analysis"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

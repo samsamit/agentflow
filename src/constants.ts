@@ -8,6 +8,7 @@ export const SCHEMA_FILE_NAME = "agentflow-flow.schema.json";
 export const SCHEMA_CDN_URL = `https://cdn.jsdelivr.net/npm/@samsamit/agentflow@latest/schema/${SCHEMA_FILE_NAME}`;
 export const SKILLS_FOLDER_NAME = "skills";
 export const SKILL_NAME = "agentflow";
+export const OPTIMIZE_SKILL_NAME = "agentflow-optimize";
 export const SKILL_FILE_NAME = "SKILL.md";
 export const AGENTS_FOLDER_NAME = "agents";
 

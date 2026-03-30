@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Agent reads the task state to check the step's current state",
+      "passed": true,
+      "evidence": "Output mentions reading navbar task state and notes test-generation is in revision state"
+    },
+    {
+      "text": "Agent correctly identifies test-generation is NOT in done state",
+      "passed": false,
+      "evidence": "Agent noted the revision state but did not treat it as a stop condition — proceeded with full analysis anyway"
+    },
+    {
+      "text": "Agent informs user that only completed steps can be optimized",
+      "passed": false,
+      "evidence": "No such message. Agent went straight into 'Root cause analysis' and 'Proposed additions'"
+    },
+    {
+      "text": "Agent stops without presenting optimization points",
+      "passed": false,
+      "evidence": "Agent presented 5 proposed additions to the instruction file despite the step being in revision state"
+    },
+    {
+      "text": "No instruction files are modified during the run",
+      "passed": true,
+      "evidence": "Output explicitly states 'not edited — descriptions only'; no Edit tool calls"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  }
+}

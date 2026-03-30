@@ -8,6 +8,7 @@ import {
   CONFIG_FILE_NAME,
   DEFAULT_ROOT_FOLDER_NAME,
   FLOWS_FOLDER_NAME,
+  OPTIMIZE_SKILL_NAME,
   SCHEMA_CDN_URL,
   SKILL_FILE_NAME,
   SKILL_NAME,
@@ -45,17 +46,17 @@ function getBundledFlowsDir(): string {
   return "";
 }
 
-/** Resolves the absolute path to the bundled skill file (skills/agentflow/SKILL.md at package root). */
-function getBundledSkillFile(): string {
+/** Resolves the absolute path to a bundled skill file (skills/<skillName>/SKILL.md at package root). */
+function getBundledSkillFile(skillName: string): string {
   const __filename = fileURLToPath(import.meta.url);
   const candidates = [
-    path.resolve(path.dirname(__filename), "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME),
+    path.resolve(path.dirname(__filename), "..", SKILLS_FOLDER_NAME, skillName, SKILL_FILE_NAME),
     path.resolve(
       path.dirname(__filename),
       "..",
       "..",
       SKILLS_FOLDER_NAME,
-      SKILL_NAME,
+      skillName,
       SKILL_FILE_NAME,
     ),
   ];
@@ -63,6 +64,19 @@ function getBundledSkillFile(): string {
     if (fs.existsSync(candidate)) return candidate;
   }
   return candidates[candidates.length - 1] ?? "";
+}
+
+function copySkill(skillName: string, currentDir: string, toolRoot: string): void {
+  const bundledSkillFile = getBundledSkillFile(skillName);
+  if (fileExists(bundledSkillFile)) {
+    const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, skillName);
+    const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
+    createFolder(skillDestDir);
+    fs.copyFileSync(bundledSkillFile, skillDestPath);
+    output.initCreated(path.relative(currentDir, skillDestPath));
+  } else {
+    output.initWarning(`Bundled skill file for "${skillName}" not found — skipping`);
+  }
 }
 
 export async function init() {
@@ -154,16 +168,8 @@ export async function init() {
       const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
       if (toolRoot !== undefined) {
         // Skill injection
-        const bundledSkillFile = getBundledSkillFile();
-        if (fileExists(bundledSkillFile)) {
-          const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, SKILL_NAME);
-          const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
-          createFolder(skillDestDir);
-          fs.copyFileSync(bundledSkillFile, skillDestPath);
-          output.initCreated(path.relative(currentDir, skillDestPath));
-        } else {
-          output.initWarning("Bundled skill file not found — skipping");
-        }
+        copySkill(SKILL_NAME, currentDir, toolRoot);
+        copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot);
 
         // Permissions — add agentflow Bash rules to ~/.claude/settings.json (Claude Code only)
         if (aiToolChoice === "claude-code") {
