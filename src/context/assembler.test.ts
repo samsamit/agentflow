@@ -384,6 +384,134 @@ describe("assembleContext — revision state", () => {
   });
 });
 
+describe("assembleContext — :ref in context.steps", () => {
+  it("emits a reference line instead of inlining file content when step is :ref", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    const taskDir = makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "plan.md"), "Create a plan.\n");
+    fs.writeFileSync(path.join(taskDir, "research.md"), "# Research Output\nFindings here.\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          description: "Research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+        {
+          name: "plan",
+          description: "Plan",
+          required: true,
+          requires: ["research"],
+          generates: "plan.md",
+          generateStrategy: "replace",
+          context: {
+            instructions: "plan.md",
+            steps: ["research:ref"],
+          },
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const taskStepStates: Record<string, StepState> = {
+      research: { state: "done" },
+      plan: stepState,
+    };
+
+    const result = assembleContext({
+      stepName: "plan",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates,
+    });
+
+    // Should emit reference line, not inline content
+    expect(result).toContain('Reference step "research" output at:');
+    expect(result).toContain("agentFlow/tasks/my-task/research.md");
+    expect(result).toContain("read this file before proceeding");
+    // Should NOT inline the file content
+    expect(result).not.toContain("Findings here.");
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+});
+
+describe("assembleContext — :ref in validates", () => {
+  it("emits an evaluate reference line instead of inlining file content", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    const taskDir = makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "review.md"), "Review all outputs.\n");
+    fs.writeFileSync(path.join(taskDir, "research.md"), "Research findings.\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          description: "Research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+        {
+          name: "review",
+          description: "Review everything",
+          required: true,
+          requires: ["research"],
+          generates: "review.md",
+          generateStrategy: "replace",
+          context: { instructions: "review.md" },
+          validates: ["research:ref"],
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const taskStepStates: Record<string, StepState> = {
+      research: { state: "done" },
+      review: stepState,
+    };
+
+    const result = assembleContext({
+      stepName: "review",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates,
+    });
+
+    // Should emit evaluate reference line
+    expect(result).toContain('Evaluate step "research"');
+    expect(result).toContain("agentFlow/tasks/my-task/research.md");
+    expect(result).toContain("pass/fail decision");
+    // Should NOT inline the file content
+    expect(result).not.toContain("Research findings.");
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+});
+
 describe("assembleContext — validates steps", () => {
   it("outputs validated files, generates instruction, then evaluation instruction (no separate complete line)", () => {
     const projectRoot = makeTempDir();
@@ -462,6 +590,73 @@ describe("assembleContext — validates steps", () => {
     // Should NOT contain a standalone "When this step is complete, run:" line
     // because for validates steps the complete command is folded into the evaluation instruction
     expect(result).not.toContain("When this step is complete, run:");
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+});
+
+describe("assembleContext — deduplication of steps in both context.steps and validates", () => {
+  it("injects the step only once via validates when it appears in both context.steps and validates", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    const taskDir = makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "review.md"), "Review the research.\n");
+    fs.writeFileSync(path.join(taskDir, "research.md"), "Research findings.\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          description: "Research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+        {
+          name: "review",
+          description: "Review",
+          required: true,
+          requires: ["research"],
+          generates: "review.md",
+          generateStrategy: "replace",
+          context: {
+            instructions: "review.md",
+            steps: ["research"],
+          },
+          validates: ["research"],
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const taskStepStates: Record<string, StepState> = {
+      research: { state: "done" },
+      review: stepState,
+    };
+
+    const result = assembleContext({
+      stepName: "review",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates,
+    });
+
+    // Content should appear exactly once
+    const occurrences = result.split("Research findings.").length - 1;
+    expect(occurrences).toBe(1);
+
+    // Should appear under the validates section, not the context.steps section
+    expect(result).toContain('Step "research" output (research.md):');
+    expect(result).not.toContain('Output from step "research"');
 
     fs.rmSync(projectRoot, { recursive: true });
   });

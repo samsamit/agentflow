@@ -44,9 +44,6 @@ steps:
     generateStrategy: replace
     context:
       instructions: spec-review.md
-      steps:
-        - behavioral-spec
-        - verification-architecture
     validates:
       - behavioral-spec
       - verification-architecture
@@ -60,7 +57,6 @@ steps:
     requires:
       - spec-review
     generates: test-generation-tasks.md
-    tasks: test-generation-tasks.md
     generateStrategy: replace
     context:
       instructions: test-generation.md
@@ -76,7 +72,6 @@ steps:
     requires:
       - test-generation
     generates: implementation-tasks.md
-    tasks: implementation-tasks.md
     generateStrategy: update
     context:
       instructions: implementation.md
@@ -93,32 +88,25 @@ steps:
     required: true
     subagent: adversary
     requires:
-      - refactor
+      - implementation
     generates: adversarial-review.md
     generateStrategy: replace
     context:
       instructions: adversarial-review.md
-      steps:
-        - behavioral-spec
-        - verification-architecture
-        - test-generation
-        - implementation
-        - refactor
     validates:
       - behavioral-spec
       - verification-architecture
-      - test-generation
-      - implementation
-      - refactor
+      - test-generation:ref
+      - implementation:ref
 
   # ─── PHASE 4: Formal Hardening ────────────────────────────────────────────
 
   - name: formal-hardening
-    description: "Phase 5: Execute verification plan — proofs, fuzzing, security scanning, mutation testing, purity audit"
+    description: "Phase 4: Execute verification plan — proofs, fuzzing, security scanning, mutation testing, purity audit"
     required: true
     subagent: builder
     requires:
-      - feedback-integration
+      - adversarial-review
     generates: formal-hardening.md
     generateStrategy: replace
     context:
@@ -126,8 +114,6 @@ steps:
       steps:
         - verification-architecture
         - test-generation
-        - implementation
-        - refactor
     validates: []
 
   # ─── PHASE 6: Convergence ─────────────────────────────────────────────────
@@ -142,19 +128,10 @@ steps:
     generateStrategy: replace
     context:
       instructions: convergence-check.md
-      steps:
-        - behavioral-spec
-        - verification-architecture
-        - test-generation
-        - implementation
-        - refactor
-        - adversarial-review
-        - formal-hardening
     validates:
       - behavioral-spec
       - verification-architecture
-      - test-generation
-      - implementation
-      - refactor
+      - test-generation:ref
+      - implementation:ref
       - adversarial-review
       - formal-hardening

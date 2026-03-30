@@ -313,11 +313,16 @@ steps:
     generates: string           # Relative path to output file
     generateStrategy: enum      # replace | update | version (default: replace)
     subagent: boolean | string  # Spawn a subagent for this step
-    validates: string[]         # Steps this step reviews (pass/fail)
+    validates: string[]         # Steps this step reviews (pass/fail).
+                                # Append ":ref" to inject a file reference instead of inlining
+                                # (e.g. "implement:ref"). Agent is instructed to read the file
+                                # before making a pass/fail decision.
     context:
       instructions: string      # Path to instruction file (relative to flow dir)
       references: string[]      # Files to inline into context (relative to project root)
-      steps: string[]           # Upstream step names whose outputs to inject
+      steps: string[]           # Upstream step names whose outputs to inject.
+                                # Append ":ref" to inject a file reference instead of inlining
+                                # the full content (e.g. "research:ref"). Useful for large outputs.
 ```
 
 ### `generateStrategy`

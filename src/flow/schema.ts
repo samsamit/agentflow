@@ -1,5 +1,25 @@
 import { z } from "zod";
 
+/**
+ * Validates a step reference entry: either a plain step name or a step name
+ * with the ":ref" suffix (e.g. "research" or "research:ref").
+ */
+const stepRefSchema = z
+  .string()
+  .regex(/^[\w-]+(:ref)?$/, 'Must be a step name or a step name followed by ":ref" (e.g. "research:ref")');
+
+/**
+ * Parses a step reference entry into its step name and injection mode.
+ * "research"     → { stepName: "research", isRef: false }
+ * "research:ref" → { stepName: "research", isRef: true }
+ */
+export function parseStepRef(entry: string): { stepName: string; isRef: boolean } {
+  if (entry.endsWith(":ref")) {
+    return { stepName: entry.slice(0, -4), isRef: true };
+  }
+  return { stepName: entry, isRef: false };
+}
+
 export const stepConfigSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
@@ -11,9 +31,9 @@ export const stepConfigSchema = z.object({
   context: z.object({
     instructions: z.string(),
     references: z.array(z.string()).optional(),
-    steps: z.array(z.string()).optional(),
+    steps: z.array(stepRefSchema).optional(),
   }),
-  validates: z.array(z.string()).optional(),
+  validates: z.array(stepRefSchema).optional(),
 });
 
 export const flowConfigSchema = z.object({

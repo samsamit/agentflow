@@ -55,10 +55,10 @@ Be exhaustive. Every item here becomes a test in Phase 2a:
 
 ## Output
 
-Write the behavioral specification as a structured document using the labeled format above. Be exhaustive — every ambiguity left here becomes a bug downstream.
+Write `behavioral-spec.md` as a structured document using the labeled format above. Be exhaustive — every ambiguity left here becomes a bug downstream.
 
 ## Guidance
 
 - **Be specific** — "update the handler" is useless; "add a `retryCount` parameter to `fetchWithRetry` in `packages/utils/src/http.ts`" is actionable
-- **Stay proportional** — a one-function fix needs a short spec; a cross-module feature needs thorough contracts
+- **Stay proportional** — match depth to blast radius. A single-function change should need roughly a page; a cross-module feature may need several. When in doubt, more contracts are safer than fewer.
 - **Don't design the implementation** — focus on *what* and *what properties*, not *how*

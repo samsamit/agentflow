@@ -34,6 +34,8 @@ Fix: [Specific change required] — OR — Question: [What must be clarified]
 
 If after exhaustive review you find no substantive flaws — only nitpicks about wording — state that explicitly with the phrase: "Spec passes the gate."
 
+Write your findings to `spec-review.md`.
+
 ## Architect Summary
 
 After your adversarial findings, produce a brief **Architect Summary** section — a human-readable TL;DR for The Architect (human developer) to review before Phase 2 begins:
@@ -52,7 +54,7 @@ After your adversarial findings, produce a brief **Architect Summary** section �
 
 ## Validation instructions
 
-For each step in `validates`:
+The `validates` list in the flow config names the upstream steps whose output you are gatekeeping. For each named step:
 - **Pass**: The spec is complete, internally consistent, and has survived adversarial review
 - **Fail**: The spec has substantive flaws that must be addressed before tests can be written
 

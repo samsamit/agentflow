@@ -7,7 +7,7 @@ Assess each dimension against its convergence signal:
 | Dimension | Convergence Signal |
 |---|---|
 | **Spec** | Your spec critiques are nitpicks about wording, not about missing behavior, ambiguity, or verification gaps |
-| **Tests** | You cannot identify a meaningful untested scenario; mutation testing confirms a high kill rate |
+| **Tests** | You cannot identify a meaningful untested scenario; mutation testing shows no surviving mutants that represent a meaningful behavioral gap |
 | **Implementation** | You are forced to invent problems that do not exist in the code |
 | **Verification** | All `[VP-N]` properties from Phase 1b pass formal proof; fuzzers find nothing; purity boundaries are intact |
 
@@ -48,13 +48,15 @@ The VSDD Contract Chain is complete:
 Spec → Verification Property → Test → Implementation → Adversarial Review → Formal Proof
 ```
 
+Write your findings to `convergence-check.md`.
+
 ## If not converged
 
 State exactly which dimension has not converged, what is missing, and which upstream step it routes back to via Phase 4.
 
 ## Validation instructions
 
-For each step in `validates`, decide:
+The `validates` list in the flow config names the upstream steps whose output you are gatekeeping. For each named step, decide:
 - **Pass**: This step's output has converged — it meets the convergence signal for its dimension
 - **Fail**: This step has not converged and requires further iteration
 

@@ -44,21 +44,19 @@ State explicitly: if the system is designed with side effects woven through the 
 
 ### 3. Verification Tooling Selection
 
-Based on the language and the properties to be proven:
-- Rust → Kani
-- C/C++ → CBMC
-- Distributed systems → TLA+
-- Language-agnostic → Dafny
-- Property-based tests → Hypothesis (Python), fast-check (TS/JS), proptest (Rust)
+Based on the language, runtime, and the properties to be proven, select the most appropriate tools available for:
+- **Formal verification** — model checkers, theorem provers, or proof assistants suitable for the language
+- **Property-based testing** — a library that generates randomized inputs and checks invariants
+- **Fuzzing** — if applicable to the domain
+- **Static analysis** — linters and type checkers with strict configuration
 
 State any constraints these tools impose on code structure. These are **architectural constraints** — they must be resolved now, not after implementation.
 
 ### 4. Property Specifications (Draft)
 
-Where possible, draft the formal property definitions now:
-- Kani proof harnesses
-- Dafny contracts
-- TLA+ invariants
+Where possible, draft the formal property definitions now using the tooling selected above:
+- Formal proof harnesses or contracts
+- Invariant definitions
 - Property-based test predicates
 
 These are not implementation — they are the formal encoding of what the behavioral spec already says in natural language.

@@ -173,6 +173,92 @@ describe("validateFlow — unknown step in validates", () => {
 });
 
 // ---------------------------------------------------------------------------
+// :ref support in context.steps
+// ---------------------------------------------------------------------------
+
+describe("validateFlow — :ref in context.steps", () => {
+  it("passes when :ref step exists and has a generates field", () => {
+    const flow = makeFlow({
+      steps: [
+        { name: "research", generates: "research.md", context: { instructions: "research.md" } },
+        {
+          name: "plan",
+          context: { instructions: "plan.md", steps: ["research:ref"] },
+        },
+      ],
+    });
+    const result = validateFlow(flow, ["research.md", "plan.md"]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("errors when :ref step exists but has no generates field", () => {
+    const flow = makeFlow({
+      steps: [
+        { name: "research", context: { instructions: "research.md" } },
+        {
+          name: "plan",
+          context: { instructions: "plan.md", steps: ["research:ref"] },
+        },
+      ],
+    });
+    const result = validateFlow(flow, ["research.md", "plan.md"]);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes(":ref") && e.includes("research"))).toBe(true);
+  });
+
+  it("errors when :ref references an unknown step", () => {
+    const flow = makeFlow({
+      steps: [
+        {
+          name: "plan",
+          context: { instructions: "plan.md", steps: ["ghost:ref"] },
+        },
+      ],
+    });
+    const result = validateFlow(flow, ["plan.md"]);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("ghost"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// :ref support in validates
+// ---------------------------------------------------------------------------
+
+describe("validateFlow — :ref in validates", () => {
+  it("passes when :ref validated step exists and has a generates field", () => {
+    const flow = makeFlow({
+      steps: [
+        { name: "implement", generates: "impl.md", context: { instructions: "implement.md" } },
+        {
+          name: "review",
+          validates: ["implement:ref"],
+          context: { instructions: "review.md" },
+        },
+      ],
+    });
+    const result = validateFlow(flow, ["implement.md", "review.md"]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("errors when :ref validated step has no generates field", () => {
+    const flow = makeFlow({
+      steps: [
+        { name: "implement", context: { instructions: "implement.md" } },
+        {
+          name: "review",
+          validates: ["implement:ref"],
+          context: { instructions: "review.md" },
+        },
+      ],
+    });
+    const result = validateFlow(flow, ["implement.md", "review.md"]);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes(":ref") && e.includes("implement"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Missing instruction files
 // ---------------------------------------------------------------------------
 

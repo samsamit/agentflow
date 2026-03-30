@@ -144,17 +144,22 @@ Give the subagent this exact prompt, filling in the step name, task name, and an
 
 ---
 
-> You are handling a single agentflow step. Complete this step and stop — do not continue to any other step.
+> You are handling a single agentflow step. This may be a regular step (you produce work) or a validator step (you evaluate another step's output and flag it for revision). Complete this step and stop — do not continue to any other step.
 >
 > **User context:** <any extra instructions or context the user gave before this step — omit this line if none>
 >
-> 1. Run: `agentflow context --step <step-name> --task <task-name>`
-> 2. Read the entire output — it contains your instructions, reference files, and any upstream outputs you need
-> 3. Do the work described, keeping the user context above in mind
-> 4. Run: `agentflow complete --step <step-name> --task <task-name>`
-> 5. If the context output instructed something like "Then run: agentflow revise --step <failing-step> --from <validator-step>", run that command for each failing step as well
+> **Before starting:** if the `TaskCreate` tool is available, create these three tasks as your checklist:
+> - "Run agentflow context"
+> - "Do the work"
+> - "Run agentflow complete"
 >
-> After step 5 you are done. Return a brief summary of what you produced. **Do not run `agentflow next`. Do not start any other step.**
+> 1. Run: `agentflow context --step <step-name> --task <task-name>` — mark "Run agentflow context" done
+> 2. Read the entire output in full — it contains your instructions, reference files, upstream outputs, and the exact commands to run when done. If the output lists any `agentflow revise` commands, create a task for each one now (e.g. "Run agentflow revise --step <name>") before continuing.
+> 3. Do the work described, keeping the user context above in mind — mark "Do the work" done
+> 4. Run the `agentflow complete` command — use the **exact command from the last line of the context output**; copy it verbatim, do not reconstruct it — mark "Run agentflow complete" done
+> 5. Run every revise task you created in step 2, in order, marking each done as you go
+>
+> Clear every task before returning. Return a brief summary of what you produced. **Do not run `agentflow next`. Do not start any other step.**
 
 ---
 

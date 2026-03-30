@@ -69,7 +69,8 @@
               "steps": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "pattern": "^[\\w-]+(:ref)?$"
                 }
               }
             },
@@ -81,7 +82,8 @@
           "validates": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[\\w-]+(:ref)?$"
             }
           }
         },

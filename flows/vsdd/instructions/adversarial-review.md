@@ -5,7 +5,7 @@ Zero-tolerance adversarial review of the implementation. Every piece of feedback
 You have the full VSDD pipeline output so far:
 - `behavioral-spec.md` — the contract
 - `verification-architecture.md` — the verification strategy and purity boundary map
-- `test-generation-tasks` — the test suite
+- `test-generation-tasks.md` — the test suite
 - `implementation-tasks.md` — the TDD implementation cycles
 
 ## Five review dimensions
@@ -22,7 +22,6 @@ Are the tests actually testing what they claim?
 - Tests that mock too aggressively and test the mock, not the behavior
 - Tests that assert on implementation details rather than observable behavior
 - Tests that would pass even if the implementation were subtly wrong
-- Red Gate failures: tests that should have failed during Phase 2a but somehow passed
 
 ### 3. Code Quality
 No mercy:
@@ -32,7 +31,7 @@ No mercy:
 - Hidden coupling between modules that should be independent
 - Missing resource cleanup (file handles, connections, timers)
 - Race conditions in any concurrent paths
-- Dead code from TDD cycles that was not removed during refactoring
+- Dead code left over from TDD cycles
 
 ### 4. Security Surface
 - Input validation gaps
@@ -80,7 +79,7 @@ Counts by severity. If PASS: no legitimate issues found.
 
 ## Validation instructions
 
-For each step in `validates`, decide:
+The `validates` list in the flow config names the upstream steps whose output you are gatekeeping. For each named step, decide:
 - **Pass**: The step's output is complete, correct, and has survived adversarial review
 - **Fail**: The step has concrete, specific flaws that must be addressed
 

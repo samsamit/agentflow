@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { n as flowConfigSchema, r as rootConfigSchema } from "./schema-CdpMUXwq.mjs";
+import { i as rootConfigSchema, n as flowConfigSchema, r as parseStepRef } from "./schema-hXWZ6LN9.mjs";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -197,8 +197,20 @@ function validateFlow(flow, existingInstructionPaths) {
 	for (const step of flow.steps) requiresMap.set(step.name, step.requires ?? []);
 	for (const step of flow.steps) {
 		for (const dep of step.requires ?? []) if (!stepNames.has(dep)) errors.push(`Step "${step.name}" requires unknown step "${dep}".`);
-		for (const ctxStep of step.context.steps ?? []) if (!stepNames.has(ctxStep)) errors.push(`Step "${step.name}" references unknown step "${ctxStep}" in context.steps.`);
-		for (const validated of step.validates ?? []) if (!stepNames.has(validated)) errors.push(`Step "${step.name}" references unknown step "${validated}" in validates.`);
+		for (const ctxStepEntry of step.context.steps ?? []) {
+			const { stepName: ctxStep, isRef } = parseStepRef(ctxStepEntry);
+			if (!stepNames.has(ctxStep)) errors.push(`Step "${step.name}" references unknown step "${ctxStep}" in context.steps.`);
+			else if (isRef) {
+				if (flow.steps.find((s) => s.name === ctxStep)?.generates === void 0) errors.push(`Step "${step.name}" uses ":ref" for step "${ctxStep}" in context.steps, but that step has no "generates" field.`);
+			}
+		}
+		for (const validatedEntry of step.validates ?? []) {
+			const { stepName: validated, isRef } = parseStepRef(validatedEntry);
+			if (!stepNames.has(validated)) errors.push(`Step "${step.name}" references unknown step "${validated}" in validates.`);
+			else if (isRef) {
+				if (flow.steps.find((s) => s.name === validated)?.generates === void 0) errors.push(`Step "${step.name}" uses ":ref" for step "${validated}" in validates, but that step has no "generates" field.`);
+			}
+		}
 		if (!instructionSet.has(step.context.instructions)) errors.push(`Step "${step.name}" instruction file not found: "${step.context.instructions}".`);
 	}
 	const visited = /* @__PURE__ */ new Set();
@@ -696,7 +708,8 @@ function assembleContext(params) {
 			parts.push(refContent);
 		}
 	}
-	if (step.context.steps !== void 0) for (const contextStepName of step.context.steps) {
+	if (step.context.steps !== void 0) for (const contextStepEntry of step.context.steps) {
+		const { stepName: contextStepName, isRef } = parseStepRef(contextStepEntry);
 		const contextStep = flow.steps.find((s) => s.name === contextStepName);
 		const contextStepState = taskStepStates[contextStepName];
 		if (contextStepState === void 0 || contextStep === void 0) continue;
@@ -704,10 +717,20 @@ function assembleContext(params) {
 			if (contextStep.generates !== void 0) {
 				const genFilePath = path.join(taskDir, contextStep.generates);
 				if (!fs.existsSync(genFilePath)) throw new Error(`Generated file for step "${contextStepName}" not found: ${genFilePath}`);
-				const genContent = fs.readFileSync(genFilePath, "utf8");
 				parts.push("");
-				parts.push(`Output from step "${contextStepName}" (${contextStep.generates}):`);
-				parts.push(genContent);
+				if (isRef) {
+					const refPath = [
+						DEFAULT_ROOT_FOLDER_NAME,
+						TASKS_FOLDER_NAME,
+						taskName,
+						contextStep.generates
+					].join("/");
+					parts.push(`Reference step "${contextStepName}" output at: ${refPath} — read this file before proceeding.`);
+				} else {
+					const genContent = fs.readFileSync(genFilePath, "utf8");
+					parts.push(`Output from step "${contextStepName}" (${contextStep.generates}):`);
+					parts.push(genContent);
+				}
 			}
 		} else if (contextStep.required === false) {
 			parts.push("");
@@ -718,15 +741,26 @@ function assembleContext(params) {
 	if (hasValidates && step.validates !== void 0) {
 		parts.push("");
 		parts.push("--- Steps to evaluate ---");
-		for (const validatedStepName of step.validates) {
+		for (const validatedStepEntry of step.validates) {
+			const { stepName: validatedStepName, isRef } = parseStepRef(validatedStepEntry);
 			const validatedStep = flow.steps.find((s) => s.name === validatedStepName);
 			if (validatedStep?.generates === void 0) continue;
 			const genFilePath = path.join(taskDir, validatedStep.generates);
 			if (fs.existsSync(genFilePath)) {
-				const genContent = fs.readFileSync(genFilePath, "utf8");
 				parts.push("");
-				parts.push(`Step "${validatedStepName}" output (${validatedStep.generates}):`);
-				parts.push(genContent);
+				if (isRef) {
+					const refPath = [
+						DEFAULT_ROOT_FOLDER_NAME,
+						TASKS_FOLDER_NAME,
+						taskName,
+						validatedStep.generates
+					].join("/");
+					parts.push(`Evaluate step "${validatedStepName}": read the output at ${refPath} before making your pass/fail decision.`);
+				} else {
+					const genContent = fs.readFileSync(genFilePath, "utf8");
+					parts.push(`Step "${validatedStepName}" output (${validatedStep.generates}):`);
+					parts.push(genContent);
+				}
 			}
 		}
 	}

@@ -1,4 +1,5 @@
 import type { FlowConfig } from "./schema.js";
+import { parseStepRef } from "./schema.js";
 
 export type ValidationResult = {
   valid: boolean;
@@ -69,16 +70,32 @@ export function validateFlow(
     }
 
     // context.steps
-    for (const ctxStep of step.context.steps ?? []) {
+    for (const ctxStepEntry of step.context.steps ?? []) {
+      const { stepName: ctxStep, isRef } = parseStepRef(ctxStepEntry);
       if (!stepNames.has(ctxStep)) {
         errors.push(`Step "${step.name}" references unknown step "${ctxStep}" in context.steps.`);
+      } else if (isRef) {
+        const referencedStep = flow.steps.find((s) => s.name === ctxStep);
+        if (referencedStep?.generates === undefined) {
+          errors.push(
+            `Step "${step.name}" uses ":ref" for step "${ctxStep}" in context.steps, but that step has no "generates" field.`,
+          );
+        }
       }
     }
 
     // validates
-    for (const validated of step.validates ?? []) {
+    for (const validatedEntry of step.validates ?? []) {
+      const { stepName: validated, isRef } = parseStepRef(validatedEntry);
       if (!stepNames.has(validated)) {
         errors.push(`Step "${step.name}" references unknown step "${validated}" in validates.`);
+      } else if (isRef) {
+        const referencedStep = flow.steps.find((s) => s.name === validated);
+        if (referencedStep?.generates === undefined) {
+          errors.push(
+            `Step "${step.name}" uses ":ref" for step "${validated}" in validates, but that step has no "generates" field.`,
+          );
+        }
       }
     }
 

@@ -6,8 +6,8 @@ Every test must reference the spec item it covers. Use the labels from `behavior
 
 ## Before Writing
 
-1. **Read `spec.md`** — catalog every behavioral contract, edge case, and non-functional requirement
-2. **Read `verification-plan.md`** — note which properties need property-based tests vs. targeted unit tests
+1. **Read `behavioral-spec.md`** — catalog every behavioral contract, edge case, and non-functional requirement
+2. **Read `verification-architecture.md`** — note which properties need property-based tests vs. targeted unit tests
 3. **Check existing test patterns** — find how tests are structured in the codebase (framework, conventions, file locations)
 
 ## TDD constraint
@@ -35,7 +35,7 @@ Tests that verify the module works correctly within the larger system context de
 ### 4. Property-Based Tests
 
 Where the verification architecture calls for property-based testing:
-- Hypothesis (Python), fast-check (TypeScript/JS), proptest (Rust)
+- Use the property-based testing library appropriate for the project's language and runtime
 - Each property-based test references a `[VP-N]` label from `verification-architecture.md`
 - Assert invariants hold across randomized inputs
 
@@ -56,8 +56,8 @@ For each unchecked task in `test-generation-tasks.md`:
 5. **Repeat** until no `- [ ]` items remain
 
 ### Step 3: Final Review - Red Gate verification
-1. Scan `tests-tasks.md` — confirm no `- [ ]` items remain
-2. Cross-check against `spec.md` — verify no contracts, edge cases, or properties were missed
+1. Scan `test-generation-tasks.md` — confirm no `- [ ]` items remain
+2. Cross-check against `behavioral-spec.md` — verify no contracts, edge cases, or properties were missed
 3. Run the full test suite — all tests should fail (red) but compile cleanly
 4. If anything is missing, add new `- [ ]` items and work through them via Step 2
 5. List every test and confirm it fails against the current (non-existent) implementation. Format:
@@ -72,7 +72,6 @@ If any test passes without implementation: flag it with `SUSPECT — passes with
 
 ## Guidance
 
-- **These are spec-verification tests** — they exist to exhaustively validate the spec during the development flow. A later `distill-tests` step will curate them into lean codebase-quality tests. Prioritize completeness and spec traceability here; do not self-censor for test suite size.
 - **Test behavior, not implementation** — assert on observable outcomes, not internal details
 - **Name tests by what they prove** — `test_returns_error_when_input_is_null` not `test1`
 - **Keep `test-generation-tasks.md` current** — update it after every completed test, not in bulk at the end

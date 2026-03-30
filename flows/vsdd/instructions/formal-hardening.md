@@ -1,4 +1,4 @@
-Execute the verification plan against the implementation. Run every tool and layer specified in `verification-plan.md` — formal verification, fuzzing, mutation testing, security scanning. This step only runs for high/critical criticality changes.
+Execute the verification plan against the implementation. Run every tool and layer specified in `verification-architecture.md` — formal verification, fuzzing, mutation testing, security scanning. This step only runs for high/critical criticality changes.
 
 Report honestly. If a tool isn't available or a proof times out, say so — don't claim success for tools you didn't run.
 
@@ -18,8 +18,8 @@ Every proof, fuzz result, and mutation test result must reference the `[VP-N]` p
 **Formal Verification** — Run proof harnesses if specified. Record: proved / failed / timeout. Trace failures to spec violations.
 
 **Security Hardening** - Report vulnerabilities by severity
-- **Cryptographic edge cases**: Wycheproof test vectors (if applicable)
-- **Static analysis**: Semgrep rules or language-appropriate equivalent
+- **Cryptographic edge cases**: Run applicable cryptographic test vectors if the change touches cryptographic operations
+- **Static analysis**: A language-appropriate static analysis tool (SAST)
 - Document any findings
 
 **Purity Boundary Audit** - Final check that the purity boundaries from Phase 1b have been respected:

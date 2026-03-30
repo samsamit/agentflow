@@ -7,6 +7,7 @@ import {
   TASKS_FOLDER_NAME,
 } from "../constants.js";
 import type { FlowConfig } from "../flow/schema.js";
+import { parseStepRef } from "../flow/schema.js";
 import type { StepState } from "../task/schema.js";
 
 export type AssembleContextParams = {
@@ -103,27 +104,36 @@ export function assembleContext(params: AssembleContextParams): string {
   }
 
   // 5. Upstream step outputs
+  const validatesStepNames = new Set((step.validates ?? []).map((e) => parseStepRef(e).stepName));
   if (step.context.steps !== undefined) {
-    for (const contextStepName of step.context.steps) {
+    for (const contextStepEntry of step.context.steps) {
+      const { stepName: contextStepName, isRef } = parseStepRef(contextStepEntry);
+
+      // Skip steps that will be injected in the validates section
+      if (validatesStepNames.has(contextStepName)) continue;
+
       const contextStep = flow.steps.find((s) => s.name === contextStepName);
       const contextStepState = taskStepStates[contextStepName];
 
       if (contextStepState === undefined || contextStep === undefined) continue;
 
       if (contextStepState.state === "done") {
-        // Inline the generated file
         if (contextStep.generates !== undefined) {
           const genFilePath = path.join(taskDir, contextStep.generates);
           if (!fs.existsSync(genFilePath)) {
-            // Required step done but file missing — throw
             throw new Error(
               `Generated file for step "${contextStepName}" not found: ${genFilePath}`,
             );
           }
-          const genContent = fs.readFileSync(genFilePath, "utf8");
           parts.push("");
-          parts.push(`Output from step "${contextStepName}" (${contextStep.generates}):`);
-          parts.push(genContent);
+          if (isRef) {
+            const refPath = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, contextStep.generates].join("/");
+            parts.push(`Reference step "${contextStepName}" output at: ${refPath} — read this file before proceeding.`);
+          } else {
+            const genContent = fs.readFileSync(genFilePath, "utf8");
+            parts.push(`Output from step "${contextStepName}" (${contextStep.generates}):`);
+            parts.push(genContent);
+          }
         }
       } else if (contextStep.required === false) {
         // Optional step not done
@@ -144,15 +154,21 @@ export function assembleContext(params: AssembleContextParams): string {
   if (hasValidates && step.validates !== undefined) {
     parts.push("");
     parts.push("--- Steps to evaluate ---");
-    for (const validatedStepName of step.validates) {
+    for (const validatedStepEntry of step.validates) {
+      const { stepName: validatedStepName, isRef } = parseStepRef(validatedStepEntry);
       const validatedStep = flow.steps.find((s) => s.name === validatedStepName);
       if (validatedStep?.generates === undefined) continue;
       const genFilePath = path.join(taskDir, validatedStep.generates);
       if (fs.existsSync(genFilePath)) {
-        const genContent = fs.readFileSync(genFilePath, "utf8");
         parts.push("");
-        parts.push(`Step "${validatedStepName}" output (${validatedStep.generates}):`);
-        parts.push(genContent);
+        if (isRef) {
+          const refPath = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, validatedStep.generates].join("/");
+          parts.push(`Evaluate step "${validatedStepName}": read the output at ${refPath} before making your pass/fail decision.`);
+        } else {
+          const genContent = fs.readFileSync(genFilePath, "utf8");
+          parts.push(`Step "${validatedStepName}" output (${validatedStep.generates}):`);
+          parts.push(genContent);
+        }
       }
     }
   }
