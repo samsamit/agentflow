@@ -135,6 +135,22 @@ export function resolveReadySteps(
 }
 
 /**
+ * Returns names of steps that are actionable — either `ready` or `revision`.
+ * These are the steps an agent should work on next.
+ */
+export function resolveActionableSteps(
+  steps: StepConfig[],
+  taskStepStates: Record<string, StepState>,
+): string[] {
+  return steps
+    .filter((step) => {
+      const state = taskStepStates[step.name]?.state;
+      return state === "ready" || state === "revision";
+    })
+    .map((step) => step.name);
+}
+
+/**
  * Returns names of `blocked` steps that should become `ready` after
  * `completedStepName` is marked done (i.e. all their requires are now done).
  *

@@ -123,9 +123,14 @@ export function taskComplete(taskName: string): void {
 // ---------------------------------------------------------------------------
 
 /** subagent: undefined = no subagent, true = generic, string = named */
-export function nextStep(stepName: string, subagent?: string | true, taskName?: string): void {
+export function nextStep(
+  stepName: string,
+  status: "ready" | "revision",
+  subagent?: string | true,
+  taskName?: string,
+): void {
   write(`Step: ${stepName}`);
-  write("Status: ready");
+  write(`Status: ${status}`);
   if (subagent === undefined) {
     write(`Run: agentflow context --step ${stepName}`);
   } else if (subagent === true) {

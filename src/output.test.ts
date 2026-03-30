@@ -38,15 +38,23 @@ describe("output.taskStarted", () => {
 describe("output.nextStep", () => {
   it("prints step name, status, and run command (no subagent)", async () => {
     const { nextStep } = await import("./output.js");
-    nextStep("research");
+    nextStep("research", "ready");
     expect(captured).toBe(
       "Step: research\nStatus: ready\nRun: agentflow context --step research\n",
     );
   });
 
+  it("prints revision status", async () => {
+    const { nextStep } = await import("./output.js");
+    nextStep("research", "revision");
+    expect(captured).toBe(
+      "Step: research\nStatus: revision\nRun: agentflow context --step research\n",
+    );
+  });
+
   it("prints named subagent variant", async () => {
     const { nextStep } = await import("./output.js");
-    nextStep("research", "researcher", "my-feature");
+    nextStep("research", "ready", "researcher", "my-feature");
     expect(captured).toBe(
       'Step: research\nStatus: ready\nSubagent: spawn subagent "researcher"\nThen run: agentflow context --step research --task my-feature\n',
     );
@@ -54,7 +62,7 @@ describe("output.nextStep", () => {
 
   it("prints generic subagent variant when subagent is true", async () => {
     const { nextStep } = await import("./output.js");
-    nextStep("research", true, "my-feature");
+    nextStep("research", "ready", true, "my-feature");
     expect(captured).toBe(
       "Step: research\nStatus: ready\nSubagent: spawn a subagent\nThen run: agentflow context --step research --task my-feature\n",
     );

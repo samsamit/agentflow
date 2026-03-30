@@ -4,6 +4,7 @@ import type { StepState } from "../task/schema.js";
 import {
   detectCycle,
   isTaskComplete,
+  resolveActionableSteps,
   resolveReadySteps,
   resolveTransitiveCascade,
   resolveUnblockedSteps,
@@ -146,6 +147,59 @@ describe("resolveReadySteps", () => {
       review: { state: "blocked" },
     };
     expect(resolveReadySteps(linearSteps, states)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveActionableSteps
+// ---------------------------------------------------------------------------
+
+describe("resolveActionableSteps", () => {
+  it("returns ready steps", () => {
+    const states: Record<string, StepState> = {
+      research: { state: "ready" },
+      plan: { state: "blocked" },
+      "task-breakdown": { state: "blocked" },
+      implement: { state: "blocked" },
+      review: { state: "blocked" },
+    };
+    expect(resolveActionableSteps(linearSteps, states)).toEqual(["research"]);
+  });
+
+  it("returns revision steps", () => {
+    const states: Record<string, StepState> = {
+      research: { state: "revision", revisedBy: "review" },
+      plan: { state: "blocked" },
+      "task-breakdown": { state: "blocked" },
+      implement: { state: "blocked" },
+      review: { state: "blocked" },
+    };
+    expect(resolveActionableSteps(linearSteps, states)).toEqual(["research"]);
+  });
+
+  it("returns both ready and revision steps", () => {
+    const states: Record<string, StepState> = {
+      research: { state: "revision", revisedBy: "review" },
+      plan: { state: "ready" },
+      "task-breakdown": { state: "blocked" },
+      implement: { state: "blocked" },
+      review: { state: "blocked" },
+    };
+    const actionable = resolveActionableSteps(linearSteps, states);
+    expect(actionable).toContain("research");
+    expect(actionable).toContain("plan");
+    expect(actionable).toHaveLength(2);
+  });
+
+  it("returns empty array when no actionable steps exist", () => {
+    const states: Record<string, StepState> = {
+      research: { state: "done" },
+      plan: { state: "blocked" },
+      "task-breakdown": { state: "blocked" },
+      implement: { state: "blocked" },
+      review: { state: "blocked" },
+    };
+    expect(resolveActionableSteps(linearSteps, states)).toEqual([]);
   });
 });
 

@@ -1,5 +1,5 @@
 import { loadFlow } from "../flow/index.js";
-import { isTaskComplete, resolveReadySteps } from "../graph/index.js";
+import { isTaskComplete, resolveActionableSteps } from "../graph/index.js";
 import type { ParallelStep } from "../output.js";
 import * as output from "../output.js";
 import { resolveTask, setActiveTask } from "../task/resolver.js";
@@ -30,30 +30,32 @@ export function nextCommand(args: NextArgs): void {
     return;
   }
 
-  const readyStepNames = resolveReadySteps(flow.steps, taskState.steps);
+  const actionableStepNames = resolveActionableSteps(flow.steps, taskState.steps);
 
-  if (readyStepNames.length === 0) {
-    // No ready steps but not complete — shouldn't normally happen in a valid workflow
+  if (actionableStepNames.length === 0) {
+    // No actionable steps but not complete — shouldn't normally happen in a valid workflow
     throw new Error(`No ready steps found for task "${taskName}".`);
   }
 
   if (args.parallel) {
-    // Return all ready steps
-    const parallelSteps: ParallelStep[] = readyStepNames.map((name) => {
+    // Return all actionable steps
+    const parallelSteps: ParallelStep[] = actionableStepNames.map((name) => {
       const stepConfig = flow.steps.find((s) => s.name === name);
       const subagent = stepConfig?.subagent === false ? undefined : stepConfig?.subagent;
       return subagent !== undefined ? { name, subagent } : { name };
     });
     output.nextParallel(parallelSteps, taskName);
   } else {
-    // Return just the first ready step
-    const firstStepName = readyStepNames[0];
+    // Return just the first actionable step
+    const firstStepName = actionableStepNames[0];
     if (firstStepName === undefined) {
       throw new Error(`No ready steps found for task "${taskName}".`);
     }
+    const stepState = taskState.steps[firstStepName]?.state ?? "ready";
+    const status = stepState === "revision" ? "revision" : "ready";
     const stepConfig = flow.steps.find((s) => s.name === firstStepName);
     const subagent = stepConfig?.subagent === false ? undefined : stepConfig?.subagent;
-    output.nextStep(firstStepName, subagent, taskName);
+    output.nextStep(firstStepName, status, subagent, taskName);
   }
 }
 
