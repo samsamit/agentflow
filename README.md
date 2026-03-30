@@ -390,9 +390,22 @@ The schema is also submitted to [SchemaStore](https://www.schemastore.org), so V
 
 ## AI Tool Integration
 
-During `agentflow init`, you can inject the Agentflow skill file into your AI tool's config directory. This teaches the agent exactly how and when to use Agentflow commands, so it never has to guess.
+During `agentflow init`, you can inject the Agentflow skill files into your AI tool's config directory. This teaches the agent exactly how and when to use Agentflow commands, so it never has to guess.
 
 Supported tools: Claude (`.claude`), Cursor (`.cursor`), Windsurf (`.windsurf`).
+
+Two skills are injected:
+
+**`agentflow`** — the core workflow skill. Teaches the agent the command loop, step states, revision handling, subagent orchestration, and validator patterns.
+
+**`agentflow-optimize`** — an instruction optimization skill. After a step completes, invoke this skill to compare the step's instruction file against what it actually produced. It identifies gaps (missing coverage, ambiguous instructions, missing context, redundant sections), presents a numbered list of specific improvements with exact rewrites, and applies approved changes directly to the instruction file.
+
+```
+# Example usage after a step completes
+"Optimize the research step instructions based on what it produced"
+"The plan step needed 2 revisions — can you tighten up its instructions?"
+"Tune the spec-review instructions based on the output it generated"
+```
 
 ---
 

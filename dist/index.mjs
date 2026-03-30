@@ -18,6 +18,7 @@ const INSTRUCTIONS_FOLDER_NAME = "instructions";
 const SCHEMA_CDN_URL = `https://cdn.jsdelivr.net/npm/@samsamit/agentflow@latest/schema/agentflow-flow.schema.json`;
 const SKILLS_FOLDER_NAME = "skills";
 const SKILL_NAME = "agentflow";
+const OPTIMIZE_SKILL_NAME = "agentflow-optimize";
 const SKILL_FILE_NAME = "SKILL.md";
 const AGENTS_FOLDER_NAME = "agents";
 const AI_TOOL_ROOTS = {
@@ -708,8 +709,10 @@ function assembleContext(params) {
 			parts.push(refContent);
 		}
 	}
+	const validatesStepNames = new Set((step.validates ?? []).map((e) => parseStepRef(e).stepName));
 	if (step.context.steps !== void 0) for (const contextStepEntry of step.context.steps) {
 		const { stepName: contextStepName, isRef } = parseStepRef(contextStepEntry);
+		if (validatesStepNames.has(contextStepName)) continue;
 		const contextStep = flow.steps.find((s) => s.name === contextStepName);
 		const contextStepState = taskStepStates[contextStepName];
 		if (contextStepState === void 0 || contextStep === void 0) continue;
@@ -973,12 +976,22 @@ function getBundledFlowsDir() {
 	info("  Warning: Bundled flows directory not found — skipping flow copy.");
 	return "";
 }
-/** Resolves the absolute path to the bundled skill file (skills/agentflow/SKILL.md at package root). */
-function getBundledSkillFile() {
+/** Resolves the absolute path to a bundled skill file (skills/<skillName>/SKILL.md at package root). */
+function getBundledSkillFile(skillName) {
 	const __filename = fileURLToPath(import.meta.url);
-	const candidates = [path.resolve(path.dirname(__filename), "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME), path.resolve(path.dirname(__filename), "..", "..", SKILLS_FOLDER_NAME, SKILL_NAME, SKILL_FILE_NAME)];
+	const candidates = [path.resolve(path.dirname(__filename), "..", SKILLS_FOLDER_NAME, skillName, SKILL_FILE_NAME), path.resolve(path.dirname(__filename), "..", "..", SKILLS_FOLDER_NAME, skillName, SKILL_FILE_NAME)];
 	for (const candidate of candidates) if (fs.existsSync(candidate)) return candidate;
 	return candidates[candidates.length - 1] ?? "";
+}
+function copySkill(skillName, currentDir, toolRoot) {
+	const bundledSkillFile = getBundledSkillFile(skillName);
+	if (fileExists(bundledSkillFile)) {
+		const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, skillName);
+		const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
+		createFolder(skillDestDir);
+		fs.copyFileSync(bundledSkillFile, skillDestPath);
+		initCreated(path.relative(currentDir, skillDestPath));
+	} else initWarning(`Bundled skill file for "${skillName}" not found — skipping`);
 }
 async function init() {
 	try {
@@ -1073,14 +1086,8 @@ async function init() {
 		if (aiToolChoice !== "none") {
 			const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
 			if (toolRoot !== void 0) {
-				const bundledSkillFile = getBundledSkillFile();
-				if (fileExists(bundledSkillFile)) {
-					const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, SKILL_NAME);
-					const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
-					createFolder(skillDestDir);
-					fs.copyFileSync(bundledSkillFile, skillDestPath);
-					initCreated(path.relative(currentDir, skillDestPath));
-				} else initWarning("Bundled skill file not found — skipping");
+				copySkill(SKILL_NAME, currentDir, toolRoot);
+				copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot);
 				if (aiToolChoice === "claude-code") initCreated(`${writeClaudeCodePermissions()} (permissions)`);
 				if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
 					const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
