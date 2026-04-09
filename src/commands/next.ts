@@ -2,12 +2,14 @@ import { loadFlow } from "../flow/index.js";
 import { isTaskComplete, resolveActionableSteps } from "../graph/index.js";
 import type { ParallelStep } from "../output.js";
 import * as output from "../output.js";
+import { writeTaskState } from "../task/io.js";
 import { resolveTask, setActiveTask } from "../task/resolver.js";
 
 export type NextArgs = {
   projectRoot?: string;
   taskName?: string;
   parallel?: boolean;
+  resume?: boolean;
 };
 
 /**
@@ -19,11 +21,27 @@ export function nextCommand(args: NextArgs): void {
   const projectRoot = args.projectRoot ?? process.cwd();
 
   // Resolve (and validate) the task first, then set it active if explicitly named
-  const { name: taskName, state: taskState } = resolveTask(projectRoot, args.taskName);
+  const { name: taskName, dir: taskDir, state: resolvedState } = resolveTask(projectRoot, args.taskName);
   if (args.taskName !== undefined) {
     setActiveTask(projectRoot, args.taskName);
   }
-  const flow = loadFlow(projectRoot, taskState.flow);
+  const flow = loadFlow(projectRoot, resolvedState.flow);
+
+  // Handle pause gate
+  let taskState = resolvedState;
+  if (taskState.pausedAfterStep !== undefined) {
+    if (args.resume) {
+      // Clear the pause and proceed
+      const { pausedAfterStep: _removed, ...stateWithoutPause } = taskState;
+      writeTaskState(taskDir, stateWithoutPause);
+      taskState = stateWithoutPause;
+    } else {
+      // Output pause message and stop
+      const pausedStepConfig = flow.steps.find((s) => s.name === taskState.pausedAfterStep);
+      output.flowPaused(taskState.pausedAfterStep, taskName, pausedStepConfig?.generates);
+      return;
+    }
+  }
 
   if (isTaskComplete(taskState.steps)) {
     output.taskComplete(taskName);
@@ -66,11 +84,13 @@ export function nextCommand(args: NextArgs): void {
 export async function nextCommandHandler(options: {
   task?: string;
   parallel?: boolean;
+  resume?: boolean;
 }): Promise<void> {
   try {
     nextCommand({
       ...(options.task !== undefined && { taskName: options.task }),
       ...(options.parallel !== undefined && { parallel: options.parallel }),
+      ...(options.resume !== undefined && { resume: options.resume }),
     });
   } catch (err) {
     output.error(err);

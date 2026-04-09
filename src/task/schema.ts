@@ -9,6 +9,7 @@ export const stepStateSchema = z.object({
 export const taskStateSchema = z.object({
   active: z.boolean(),
   flow: z.string(),
+  pausedAfterStep: z.string().optional(),
   steps: z.record(z.string(), stepStateSchema),
 });
 

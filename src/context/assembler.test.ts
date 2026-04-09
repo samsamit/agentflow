@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { FlowConfig } from "../flow/schema.js";
 import type { StepState } from "../task/schema.js";
-import { assembleContext } from "./assembler.js";
+import { assembleContext, assembleContextDebug } from "./assembler.js";
 
 /**
  * Helper to build a minimal temp project directory for context tests.
@@ -74,11 +74,10 @@ describe("assembleContext — ready state", () => {
       taskStepStates,
     });
 
-    expect(result).toContain("Step: research");
-    expect(result).toContain("Description: Research the problem domain");
+    expect(result).toContain('<context step="research" task="my-task"');
+    expect(result).toContain('description="Research the problem domain"');
     expect(result).toContain("Research the domain thoroughly.");
-    expect(result).toContain("This step must generate the file:");
-    expect(result).toContain("research.md");
+    expect(result).toContain('<generates file="agentFlow/tasks/my-task/research.md"');
     expect(result).toContain("agentflow complete --step research --task my-task");
 
     fs.rmSync(projectRoot, { recursive: true });
@@ -249,9 +248,8 @@ describe("assembleContext — optional skipped upstream step", () => {
       taskStepStates,
     });
 
-    expect(result).toContain(
-      'Note: Optional step "research" was not completed — skipping context injection.',
-    );
+    expect(result).toContain('<skipped-step step="research">');
+    expect(result).toContain("Optional step was not completed — skipping context injection.");
 
     fs.rmSync(projectRoot, { recursive: true });
   });
@@ -374,8 +372,8 @@ describe("assembleContext — revision state", () => {
       taskStepStates,
     });
 
+    expect(result).toContain('<revision revised-by="review">');
     expect(result).toContain("This step is being revised.");
-    expect(result).toContain('It was marked for revision by step "review".');
     expect(result).toContain("Old research output.");
     expect(result).toContain("Review feedback: improve section 2.");
     expect(result).toContain("Rework this step based on the review feedback above.");
@@ -438,10 +436,10 @@ describe("assembleContext — :ref in context.steps", () => {
       taskStepStates,
     });
 
-    // Should emit reference line, not inline content
-    expect(result).toContain('Reference step "research" output at:');
+    // Should emit reference tag, not inline content
+    expect(result).toContain('<step-ref step="research"');
     expect(result).toContain("agentFlow/tasks/my-task/research.md");
-    expect(result).toContain("read this file before proceeding");
+    expect(result).toContain("Read the file at the path above before proceeding.");
     // Should NOT inline the file content
     expect(result).not.toContain("Findings here.");
 
@@ -501,8 +499,8 @@ describe("assembleContext — :ref in validates", () => {
       taskStepStates,
     });
 
-    // Should emit evaluate reference line
-    expect(result).toContain('Evaluate step "research"');
+    // Should emit evaluate-ref tag, not inline content
+    expect(result).toContain('<evaluate-ref step="research"');
     expect(result).toContain("agentFlow/tasks/my-task/research.md");
     expect(result).toContain("pass/fail decision");
     // Should NOT inline the file content
@@ -577,19 +575,359 @@ describe("assembleContext — validates steps", () => {
       taskStepStates,
     });
 
-    // Should contain validated step files
+    // Should contain validated step files inside evaluate tags
+    expect(result).toContain('<evaluate step="research"');
+    expect(result).toContain('<evaluate step="plan"');
     expect(result).toContain("Research findings.");
     expect(result).toContain("The plan.");
 
-    // Should contain evaluation instruction (not a separate "When complete" line)
+    // Should contain evaluation instruction inside next-command tag
+    expect(result).toContain("<next-command>");
     expect(result).toContain("Evaluate each of the above steps and decide pass or fail.");
     expect(result).toContain("agentflow complete --step review --task my-task");
     expect(result).toContain("agentflow revise --step");
     expect(result).toContain("--from review");
 
     // Should NOT contain a standalone "When this step is complete, run:" line
-    // because for validates steps the complete command is folded into the evaluation instruction
     expect(result).not.toContain("When this step is complete, run:");
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+});
+
+describe("assembleContextDebug", () => {
+  it("returns an entry for the instructions file with correct label, lines, and tokens", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    makeTaskDir(projectRoot, "my-task");
+
+    const content = "Do the research.\nBe thorough.\n";
+    fs.writeFileSync(path.join(instrDir, "research.md"), content);
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const entries = assembleContextDebug({
+      stepName: "research",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates: { research: stepState },
+    });
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.label).toContain("research.md");
+    expect(entries[0]?.lines).toBe(content.split("\n").length);
+    expect(entries[0]?.tokens).toBe(Math.ceil(content.length / 4));
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
+  it("includes reference files", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "research.md"), "Instructions.\n");
+    fs.mkdirSync(path.join(projectRoot, "docs"), { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, "docs", "requirements.md"), "# Requirements\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md", references: ["docs/requirements.md"] },
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const entries = assembleContextDebug({
+      stepName: "research",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates: { research: stepState },
+    });
+
+    expect(entries).toHaveLength(2);
+    expect(entries.some((e) => e.label === "docs/requirements.md")).toBe(true);
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
+  it("includes upstream step output files (done, non-ref)", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    const taskDir = makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "plan.md"), "Plan instructions.\n");
+    fs.writeFileSync(path.join(taskDir, "research.md"), "Research output.\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+        {
+          name: "plan",
+          required: true,
+          requires: ["research"],
+          generates: "plan.md",
+          generateStrategy: "replace",
+          context: { instructions: "plan.md", steps: ["research"] },
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const entries = assembleContextDebug({
+      stepName: "plan",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates: { research: { state: "done" }, plan: stepState },
+    });
+
+    expect(entries.some((e) => e.label.includes("research.md"))).toBe(true);
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
+  it("excludes :ref upstream steps", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    const taskDir = makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "plan.md"), "Plan instructions.\n");
+    fs.writeFileSync(path.join(taskDir, "research.md"), "Research output.\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+        {
+          name: "plan",
+          required: true,
+          requires: ["research"],
+          generates: "plan.md",
+          generateStrategy: "replace",
+          context: { instructions: "plan.md", steps: ["research:ref"] },
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const entries = assembleContextDebug({
+      stepName: "plan",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates: { research: { state: "done" }, plan: stepState },
+    });
+
+    // Only the instructions file — research.md is :ref so not counted
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.label).toContain("plan.md");
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
+  it("includes validated step files (non-ref)", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    const taskDir = makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "review.md"), "Review instructions.\n");
+    fs.writeFileSync(path.join(taskDir, "research.md"), "Research output.\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+        {
+          name: "review",
+          required: true,
+          requires: ["research"],
+          generates: "review.md",
+          generateStrategy: "replace",
+          context: { instructions: "review.md" },
+          validates: ["research"],
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const entries = assembleContextDebug({
+      stepName: "review",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates: { research: { state: "done" }, review: stepState },
+    });
+
+    expect(entries.some((e) => e.label.includes("research.md"))).toBe(true);
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
+  it("excludes :ref validated steps", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    const taskDir = makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "review.md"), "Review instructions.\n");
+    fs.writeFileSync(path.join(taskDir, "research.md"), "Research output.\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+        {
+          name: "review",
+          required: true,
+          requires: ["research"],
+          generates: "review.md",
+          generateStrategy: "replace",
+          context: { instructions: "review.md" },
+          validates: ["research:ref"],
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "ready" };
+    const entries = assembleContextDebug({
+      stepName: "review",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates: { research: { state: "done" }, review: stepState },
+    });
+
+    // Only the instructions file — research.md is :ref so excluded
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.label).toContain("review.md");
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
+  it("includes revision files when step is in revision state", () => {
+    const projectRoot = makeTempDir();
+    const flowName = "plan";
+    makeFlowDir(projectRoot, flowName);
+    const instrDir = makeInstructionsDir(projectRoot, flowName);
+    const taskDir = makeTaskDir(projectRoot, "my-task");
+
+    fs.writeFileSync(path.join(instrDir, "research.md"), "Research instructions.\n");
+    fs.writeFileSync(path.join(taskDir, "research.md"), "Old research output.\n");
+    fs.writeFileSync(path.join(taskDir, "review.md"), "Review feedback.\n");
+
+    const flow: FlowConfig = {
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          required: true,
+          requires: [],
+          generates: "research.md",
+          generateStrategy: "replace",
+          context: { instructions: "research.md" },
+        },
+        {
+          name: "review",
+          required: true,
+          requires: ["research"],
+          generates: "review.md",
+          generateStrategy: "replace",
+          context: { instructions: "review.md" },
+          validates: ["research"],
+        },
+      ],
+    };
+
+    const stepState: StepState = { state: "revision", revisionCount: 1, revisedBy: "review" };
+    const entries = assembleContextDebug({
+      stepName: "research",
+      taskName: "my-task",
+      flowName,
+      projectRoot,
+      flow,
+      stepState,
+      taskStepStates: { research: stepState, review: { state: "done" } },
+    });
+
+    const labels = entries.map((e) => e.label);
+    // Both the step's previous output and the reviewer's feedback should be included
+    expect(labels.some((l) => l.includes("research.md") && l.includes("my-task"))).toBe(true);
+    expect(labels.some((l) => l.includes("review.md") && l.includes("my-task"))).toBe(true);
 
     fs.rmSync(projectRoot, { recursive: true });
   });
@@ -654,9 +992,9 @@ describe("assembleContext — deduplication of steps in both context.steps and v
     const occurrences = result.split("Research findings.").length - 1;
     expect(occurrences).toBe(1);
 
-    // Should appear under the validates section, not the context.steps section
-    expect(result).toContain('Step "research" output (research.md):');
-    expect(result).not.toContain('Output from step "research"');
+    // Should appear under the validates section (evaluate tag), not context.steps (step-output tag)
+    expect(result).toContain('<evaluate step="research"');
+    expect(result).not.toContain('<step-output step="research"');
 
     fs.rmSync(projectRoot, { recursive: true });
   });

@@ -26,11 +26,13 @@ You are reviewing two documents:
 
 ## Output format
 
-For each flaw:
+Be maximally terse. Each finding is **one line** — issue and fix on the same line, no elaboration:
+
 ```
-**[LOCATION: spec item label or section name]** [Flaw description]
-Fix: [Specific change required] — OR — Question: [What must be clarified]
+**[LOCATION]** Issue. Fix: Specific change.
 ```
+
+No multi-sentence explanations. No quoting from the spec. State only what is wrong and what to change.
 
 If after exhaustive review you find no substantive flaws — only nitpicks about wording — state that explicitly with the phrase: "Spec passes the gate."
 
@@ -38,18 +40,14 @@ Write your findings to `spec-review.md`.
 
 ## Architect Summary
 
-After your adversarial findings, produce a brief **Architect Summary** section — a human-readable TL;DR for The Architect (human developer) to review before Phase 2 begins:
+After your findings, append a compact summary (no prose — bullets only):
 
 ```
 ## Architect Summary
 
-**Blocking issues** (must be resolved before Phase 2):
-- [List of critical flaws, or "None"]
-
-**Recommended attention** (non-blocking but worth reviewing):
-- [List of concerns, or "None"]
-
-**Gate decision**: PASS / FAIL
+**Blocking:** [bullet per blocker, or "None"]
+**Attention:** [bullet per non-blocker, or "None"]
+**Gate:** PASS / FAIL
 ```
 
 ## Validation instructions

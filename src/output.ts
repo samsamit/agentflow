@@ -182,8 +182,61 @@ export function stepContext(content: string): void {
   write(content);
 }
 
-export function stepContextTokens(tokenCount: number): void {
-  write(`Tokens: ~${tokenCount}`);
+export type ContextDebugEntry = {
+  label: string;
+  lines: number;
+  tokens: number;
+};
+
+export function stepContextDebug(
+  stepName: string,
+  taskName: string,
+  entries: ContextDebugEntry[],
+): void {
+  const FILE_COL = 40;
+  const NUM_COL = 8;
+  const sep = "─".repeat(FILE_COL + NUM_COL + NUM_COL);
+
+  function formatNum(n: number): string {
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  write(styled(`Context debug — ${stepName} (${taskName})`, c.bold, c.brightWhite));
+  write("");
+  write(
+    styled("File".padEnd(FILE_COL), c.dim) +
+    styled("Lines".padStart(NUM_COL), c.dim) +
+    styled("Tokens".padStart(NUM_COL), c.dim),
+  );
+  write(styled(sep, c.gray));
+
+  for (const entry of entries) {
+    const label =
+      entry.label.length > FILE_COL
+        ? `…${entry.label.slice(-(FILE_COL - 1))}`
+        : entry.label;
+    write(label.padEnd(FILE_COL) + String(entry.lines).padStart(NUM_COL) + formatNum(entry.tokens).padStart(NUM_COL));
+  }
+
+  const totalLines = entries.reduce((sum, e) => sum + e.lines, 0);
+  const totalTokens = entries.reduce((sum, e) => sum + e.tokens, 0);
+
+  write(styled(sep, c.gray));
+  write(
+    styled("TOTAL".padEnd(FILE_COL), c.bold) +
+    styled(String(totalLines).padStart(NUM_COL), c.bold) +
+    styled(formatNum(totalTokens).padStart(NUM_COL), c.bold),
+  );
+}
+
+export function flowPaused(stepName: string, taskName: string, generatedFile?: string): void {
+  write(`Flow paused after step "${stepName}".`);
+  if (generatedFile !== undefined) {
+    write(`Review the output at:`);
+    write(`  agentFlow/tasks/${taskName}/${generatedFile}`);
+  }
+  write(`Once the user has reviewed and approved, run:`);
+  write(`  agentflow next --resume`);
 }
 
 export function stepComplete(stepName: string, unblocked: string[]): void {

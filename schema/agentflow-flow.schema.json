@@ -85,6 +85,9 @@
               "type": "string",
               "pattern": "^[\\w-]+(:ref)?$"
             }
+          },
+          "pauseAfter": {
+            "type": "boolean"
           }
         },
         "required": [

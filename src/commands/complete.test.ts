@@ -136,6 +136,58 @@ describe("completeCommand integration", () => {
     fs.rmSync(projectRoot, { recursive: true });
   });
 
+  it("writes pausedAfterStep when completing a step with pauseAfter: true", () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agentflow-complete-pause-test-"));
+
+    fs.mkdirSync(path.join(projectRoot, "agentFlow"), { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, "agentFlow", ".agentflow.yaml"), "defaultFlow: plan\n");
+    fs.mkdirSync(path.join(projectRoot, "agentFlow", "tasks"), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, "agentFlow", "flows", "plan"), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, "agentFlow", "flows", "plan", ".agentflow.yaml"),
+      [
+        "name: plan",
+        "steps:",
+        "  - name: research",
+        "    pauseAfter: true",
+        "    requires: []",
+        "    context:",
+        "      instructions: research.md",
+        "  - name: implement",
+        "    requires:",
+        "      - research",
+        "    context:",
+        "      instructions: implement.md",
+      ].join("\n") + "\n",
+    );
+
+    const taskDir = path.join(projectRoot, "agentFlow", "tasks", "my-feature");
+    fs.mkdirSync(taskDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(taskDir, ".taskState.yaml"),
+      ["active: true", "flow: plan", "steps:", "  research:", "    state: ready", "  implement:", "    state: blocked"].join("\n") + "\n",
+    );
+
+    completeCommand({ projectRoot, stepName: "research", taskName: "my-feature" });
+
+    const state = readTaskState(taskDir);
+    expect(state.pausedAfterStep).toBe("research");
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
+  it("does not write pausedAfterStep when step has no pauseAfter", () => {
+    const projectRoot = makeTestProject();
+
+    completeCommand({ projectRoot, stepName: "research", taskName: "my-feature" });
+
+    const taskDir = path.join(projectRoot, "agentFlow", "tasks", "my-feature");
+    const state = readTaskState(taskDir);
+    expect(state.pausedAfterStep).toBeUndefined();
+
+    fs.rmSync(projectRoot, { recursive: true });
+  });
+
   it("resolves active task when --task is not provided", () => {
     const projectRoot = makeTestProject();
 

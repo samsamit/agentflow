@@ -65,8 +65,15 @@ export function completeCommand(args: CompleteArgs): void {
     }
   }
 
+  // Check if this step has pauseAfter set
+  const stepConfig = flow.steps.find((s) => s.name === stepName);
+  const pauseAfter = stepConfig?.pauseAfter === true;
+
   // Write updated state
-  writeTaskState(taskDir, { ...taskState, steps: updatedSteps });
+  const updatedTaskState = pauseAfter
+    ? { ...taskState, steps: updatedSteps, pausedAfterStep: stepName }
+    : { ...taskState, steps: updatedSteps };
+  writeTaskState(taskDir, updatedTaskState);
 
   output.stepComplete(stepName, unblocked);
 }

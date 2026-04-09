@@ -18,7 +18,11 @@ const program = new Command();
 
 program.name("agentflow").description("A CLI tool for managing agentic workflows").version("1.0.0");
 
-program.command("init").description("Initialize agentflow in the current directory").action(init);
+program
+  .command("init")
+  .description("Initialize agentflow in the current directory")
+  .option("--default", "Non-interactive init: scaffold structure only, skip flows, IDE, and AI tool setup")
+  .action((opts: { default?: boolean }) => init(opts));
 
 program
   .command("validate")
@@ -38,15 +42,16 @@ program
   .description("Get the next step(s) to work on")
   .option("--task <name>", "task name (sets as active if given)")
   .option("--parallel", "return all currently ready steps")
-  .action((options: { task?: string; parallel?: boolean }) => nextCommandHandler(options));
+  .option("--resume", "clear a flow pause and proceed to the next step")
+  .action((options: { task?: string; parallel?: boolean; resume?: boolean }) => nextCommandHandler(options));
 
 program
   .command("context")
   .description("Output full context for a step to inject into an agent prompt")
   .requiredOption("--step <name>", "step name")
   .option("--task <name>", "task name (sets as active if given)")
-  .option("--tokens", "output estimated token count instead of full context")
-  .action((options: { step: string; task?: string; tokens?: boolean }) => contextCommandHandler(options));
+  .option("--debug", "list all context files with line and token counts (replaces normal output)")
+  .action((options: { step: string; task?: string; debug?: boolean }) => contextCommandHandler(options));
 
 program
   .command("state")

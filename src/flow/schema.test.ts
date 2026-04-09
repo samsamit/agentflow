@@ -126,4 +126,22 @@ describe("FlowConfigSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("accepts and preserves pauseAfter: true on a step", () => {
+    const result = FlowConfigSchema.safeParse({
+      name: "plan",
+      steps: [
+        {
+          name: "research",
+          requires: [],
+          pauseAfter: true,
+          context: { instructions: "research.md" },
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.steps[0]?.pauseAfter).toBe(true);
+    }
+  });
 });

@@ -79,7 +79,7 @@ function copySkill(skillName: string, currentDir: string, toolRoot: string): voi
   }
 }
 
-export async function init() {
+export async function init(options: { default?: boolean } = {}) {
   try {
     const currentDir = process.cwd();
     const mainFolderPath = path.join(currentDir, DEFAULT_ROOT_FOLDER_NAME);
@@ -104,7 +104,7 @@ export async function init() {
     // --- Copy bundled flows ---
     let selectedFlows: string[] = [];
     const bundledFlowsDir = getBundledFlowsDir();
-    if (bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
+    if (!options.default && bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
       const bundledFlowNames = listDirs(bundledFlowsDir);
       if (bundledFlowNames.length > 0) {
         output.initSection("Bundled flows");
@@ -127,75 +127,83 @@ export async function init() {
     }
 
     // --- IDE config ---
-    output.initSection("IDE integration");
-
-    const ideChoice = await select<string>({
-      message: "Select your IDE for YAML schema support:",
-      choices: [
-        { name: "VS Code", value: "vscode" },
-        { name: "JetBrains (IntelliJ, WebStorm, etc.)", value: "jetbrains" },
-        { name: "Zed", value: "zed" },
-        { name: "None / skip", value: "none" },
-      ],
-    });
-
-    if (ideChoice === "vscode") {
-      const settingsPath = writeVsCodeSettings(currentDir, SCHEMA_CDN_URL);
-      output.initCreated(path.relative(currentDir, settingsPath));
-    } else if (ideChoice === "jetbrains") {
-      const xmlPath = writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL);
-      output.initCreated(path.relative(currentDir, xmlPath));
-    } else if (ideChoice === "zed") {
-      const settingsPath = writeZedSettings(currentDir, SCHEMA_CDN_URL);
-      output.initCreated(path.relative(currentDir, settingsPath));
-    } else {
+    if (options.default) {
       output.initSkipped("IDE configuration skipped");
+    } else {
+      output.initSection("IDE integration");
+
+      const ideChoice = await select<string>({
+        message: "Select your IDE for YAML schema support:",
+        choices: [
+          { name: "VS Code", value: "vscode" },
+          { name: "JetBrains (IntelliJ, WebStorm, etc.)", value: "jetbrains" },
+          { name: "Zed", value: "zed" },
+          { name: "None / skip", value: "none" },
+        ],
+      });
+
+      if (ideChoice === "vscode") {
+        const settingsPath = writeVsCodeSettings(currentDir, SCHEMA_CDN_URL);
+        output.initCreated(path.relative(currentDir, settingsPath));
+      } else if (ideChoice === "jetbrains") {
+        const xmlPath = writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL);
+        output.initCreated(path.relative(currentDir, xmlPath));
+      } else if (ideChoice === "zed") {
+        const settingsPath = writeZedSettings(currentDir, SCHEMA_CDN_URL);
+        output.initCreated(path.relative(currentDir, settingsPath));
+      } else {
+        output.initSkipped("IDE configuration skipped");
+      }
     }
 
     // --- AI tool skill + agent injection ---
-    output.initSection("AI tool integration");
-    const aiToolChoice = await select<string>({
-      message: "Select your AI tool to inject the agentflow skill:",
-      choices: [
-        { name: "Claude Code", value: "claude-code" },
-        { name: "Cursor", value: "cursor" },
-        { name: "Windsurf", value: "windsurf" },
-        { name: "None / skip", value: "none" },
-      ],
-    });
+    if (options.default) {
+      output.initSkipped("AI tool integration skipped");
+    } else {
+      output.initSection("AI tool integration");
+      const aiToolChoice = await select<string>({
+        message: "Select your AI tool to inject the agentflow skill:",
+        choices: [
+          { name: "Claude Code", value: "claude-code" },
+          { name: "Cursor", value: "cursor" },
+          { name: "Windsurf", value: "windsurf" },
+          { name: "None / skip", value: "none" },
+        ],
+      });
 
-    if (aiToolChoice !== "none") {
-      const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
-      if (toolRoot !== undefined) {
-        // Skill injection
-        copySkill(SKILL_NAME, currentDir, toolRoot);
-        copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot);
+      if (aiToolChoice !== "none") {
+        const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
+        if (toolRoot !== undefined) {
+          // Skill injection
+          copySkill(SKILL_NAME, currentDir, toolRoot);
+          copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot);
 
-        // Permissions — add agentflow Bash rules to ~/.claude/settings.json (Claude Code only)
-        if (aiToolChoice === "claude-code") {
-          const claudeSettingsPath = writeClaudeCodePermissions();
-          output.initCreated(`${claudeSettingsPath} (permissions)`);
-        }
+          // Permissions — add agentflow Bash rules to ~/.claude/settings.json (Claude Code only)
+          if (aiToolChoice === "claude-code") {
+            const claudeSettingsPath = writeClaudeCodePermissions();
+            output.initCreated(`${claudeSettingsPath} (permissions)`);
+          }
 
-        // Agent injection — install agent files bundled with each selected flow
-        if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
-          const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
-          for (const flowName of selectedFlows) {
-            const agentsSrcDir = path.join(bundledFlowsDir, flowName, AGENTS_FOLDER_NAME);
-            if (fileExists(agentsSrcDir)) {
-              createFolder(agentsDestDir);
-              for (const agentFile of fs.readdirSync(agentsSrcDir)) {
-                const agentSrc = path.join(agentsSrcDir, agentFile);
-                const agentDest = path.join(agentsDestDir, agentFile);
-                fs.copyFileSync(agentSrc, agentDest);
-                output.initCreated(path.relative(currentDir, agentDest));
+          // Agent injection — install agent files bundled with each selected flow
+          if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
+            const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
+            for (const flowName of selectedFlows) {
+              const agentsSrcDir = path.join(bundledFlowsDir, flowName, AGENTS_FOLDER_NAME);
+              if (fileExists(agentsSrcDir)) {
+                createFolder(agentsDestDir);
+                for (const agentFile of fs.readdirSync(agentsSrcDir)) {
+                  const agentSrc = path.join(agentsSrcDir, agentFile);
+                  const agentDest = path.join(agentsDestDir, agentFile);
+                  fs.copyFileSync(agentSrc, agentDest);
+                  output.initCreated(path.relative(currentDir, agentDest));
+                }
               }
             }
           }
         }
+      } else {
+        output.initSkipped("AI tool integration skipped");
       }
-    } else {
-      output.initSkipped("AI tool integration skipped");
     }
 
     output.initSuccess();

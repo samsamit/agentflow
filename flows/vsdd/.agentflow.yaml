@@ -45,8 +45,8 @@ steps:
     context:
       instructions: spec-review.md
     validates:
-      - behavioral-spec
-      - verification-architecture
+      - behavioral-spec:ref
+      - verification-architecture:ref
 
   # ─── PHASE 2: Test-First Implementation ───────────────────────────────────
 
@@ -61,8 +61,8 @@ steps:
     context:
       instructions: test-generation.md
       steps:
-        - behavioral-spec
-        - verification-architecture
+        - behavioral-spec:ref
+        - verification-architecture:ref
     validates: []
 
   - name: implementation
@@ -76,9 +76,9 @@ steps:
     context:
       instructions: implementation.md
       steps:
-        - behavioral-spec
-        - verification-architecture
-        - test-generation
+        - behavioral-spec:ref
+        - verification-architecture:ref
+        - test-generation:ref
     validates: []
 
   # ─── PHASE 3: Adversarial Refinement ──────────────────────────────────────
@@ -94,8 +94,8 @@ steps:
     context:
       instructions: adversarial-review.md
     validates:
-      - behavioral-spec
-      - verification-architecture
+      - behavioral-spec:ref
+      - verification-architecture:ref
       - test-generation:ref
       - implementation:ref
 
@@ -129,9 +129,9 @@ steps:
     context:
       instructions: convergence-check.md
     validates:
-      - behavioral-spec
-      - verification-architecture
+      - behavioral-spec:ref
+      - verification-architecture:ref
       - test-generation:ref
       - implementation:ref
-      - adversarial-review
-      - formal-hardening
+      - adversarial-review:ref
+      - formal-hardening:ref

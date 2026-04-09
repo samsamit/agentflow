@@ -129,14 +129,19 @@ Run: agentflow context --step research
 ```
 $ agentflow context --step research
 
-Step: research
-Description: Investigate the problem domain
+<context step="research" task="my-feature" description="Investigate the problem domain">
 
---- Instructions ---
+<instructions>
 [full content of agentFlow/flows/plan/instructions/research.md]
----
+</instructions>
 
-Run when complete: agentflow complete --step research
+<generates file="agentFlow/tasks/my-feature/research.md" strategy="replace">
+Create this file.
+</generates>
+
+<next-command>agentflow complete --step research --task my-feature</next-command>
+
+</context>
 ```
 
 ```
@@ -233,8 +238,11 @@ Assembles and outputs the full context for a step.
 |------|-------------|
 | `--step <name>` | (required) Step name |
 | `--task <name>` | Defaults to active task |
+| `--debug` | Lists each source file with line and token counts instead of printing content |
 
-Context includes: step description, instructions (inlined), referenced files (inlined), outputs from upstream steps, revision feedback if the step is being reworked, and what files the step should generate.
+Context is emitted as structured XML tags so the agent can unambiguously identify each section. Includes: instructions, referenced files, upstream step outputs, revision feedback if the step is being reworked, and the file the step must generate.
+
+`:ref` entries in `context.steps` and `validates` emit a file pointer tag instead of inlining the content — useful for large outputs where inlining would bloat the context window.
 
 ---
 

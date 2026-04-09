@@ -41,6 +41,25 @@ describe("taskStateSchema round-trip", () => {
     }
   });
 
+  it("serializes and parses back with pausedAfterStep", () => {
+    const state: TaskState = {
+      active: true,
+      flow: "plan",
+      pausedAfterStep: "research",
+      steps: {
+        research: { state: "done" },
+        plan: { state: "ready" },
+      },
+    };
+    const yaml = stringify(state);
+    const parsed: unknown = parse(yaml);
+    const result = taskStateSchema.safeParse(parsed);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.pausedAfterStep).toBe("research");
+    }
+  });
+
   it("rejects invalid state values", () => {
     const invalid = {
       active: true,

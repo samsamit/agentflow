@@ -56,7 +56,7 @@ Only recommend REVISE for targets where you found legitimate issues at that leve
 
 ## Output Format
 
-Write `adversarial-review.md`:
+Be maximally terse. Write `adversarial-review.md`:
 
 ```
 # Adversarial Review
@@ -64,18 +64,15 @@ Write `adversarial-review.md`:
 ## Verdict: PASS | FAIL
 
 ## Issues
-(Only if FAIL — in severity order)
+(Only if FAIL — in severity order. Each issue is ONE line.)
 
-### [CRITICAL | HIGH | MEDIUM | LOW] — Brief title
-- **Dimension**: Spec Fidelity | Test Quality | Code Quality | Security | Spec Gap
-- **Location**: file:line
-- **Flaw**: What's wrong
-- **Evidence**: Specific code demonstrating the problem
-- **Fix**: What needs to change
+- [CRITICAL|HIGH|MEDIUM|LOW] [Dimension] file:line — Issue. Fix: change.
 
 ## Summary
 Counts by severity. If PASS: no legitimate issues found.
 ```
+
+No multi-sentence explanations. No quoting code. State only what is wrong, where, and what to change.
 
 ## Validation instructions
 

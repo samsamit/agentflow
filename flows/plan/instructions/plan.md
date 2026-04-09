@@ -1,18 +1,18 @@
 # Plan
 
-Your task is to create a detailed implementation plan based on the research.
+Create a clear, actionable implementation plan. Do not implement anything — this step ends with a written plan.
 
 ## What to do
 
-1. Review the research findings carefully
-2. Define the overall approach and architecture
-3. Break down the work into logical phases or components
-4. Identify dependencies and sequencing
+1. Review the research findings (if available)
+2. Define the approach — what changes, where, and why
+3. List the concrete implementation steps in order
 
 ## Output
 
-Write a plan document covering:
+Write a plan covering:
 - Chosen approach and rationale
-- High-level architecture or design decisions
-- Implementation phases with clear goals
-- Dependencies and sequencing
+- Ordered implementation steps as checkboxes
+- Any trade-offs or decisions made
+
+Make the steps specific enough to act on directly. This plan is the deliverable — implementation happens separately after this flow completes.

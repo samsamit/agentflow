@@ -34,6 +34,7 @@ export const stepConfigSchema = z.object({
     steps: z.array(stepRefSchema).optional(),
   }),
   validates: z.array(stepRefSchema).optional(),
+  pauseAfter: z.boolean().optional(),
 });
 
 export const flowConfigSchema = z.object({

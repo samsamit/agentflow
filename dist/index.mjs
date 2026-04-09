@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { i as rootConfigSchema, n as flowConfigSchema, r as parseStepRef } from "./schema-hXWZ6LN9.mjs";
+import { i as rootConfigSchema, n as flowConfigSchema, r as parseStepRef } from "./schema-PH2bkxXe.mjs";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -278,10 +278,14 @@ function buildReverseDependencyGraph(steps) {
 	return graph;
 }
 /**
-* Returns names of steps currently in `ready` state.
+* Returns names of steps that are actionable — either `ready` or `revision`.
+* These are the steps an agent should work on next.
 */
-function resolveReadySteps(steps, taskStepStates) {
-	return steps.filter((step) => taskStepStates[step.name]?.state === "ready").map((step) => step.name);
+function resolveActionableSteps(steps, taskStepStates) {
+	return steps.filter((step) => {
+		const state = taskStepStates[step.name]?.state;
+		return state === "ready" || state === "revision";
+	}).map((step) => step.name);
 }
 /**
 * Returns names of `blocked` steps that should become `ready` after
@@ -406,9 +410,9 @@ function taskComplete(taskName) {
 	write("All steps are done.");
 }
 /** subagent: undefined = no subagent, true = generic, string = named */
-function nextStep(stepName, subagent, taskName) {
+function nextStep(stepName, status, subagent, taskName) {
 	write(`Step: ${stepName}`);
-	write("Status: ready");
+	write(`Status: ${status}`);
 	if (subagent === void 0) write(`Run: agentflow context --step ${stepName}`);
 	else if (subagent === true) {
 		write("Subagent: spawn a subagent");
@@ -433,8 +437,31 @@ function nextParallel(steps, taskName) {
 function stepContext(content) {
 	write(content);
 }
-function stepContextTokens(tokenCount) {
-	write(`Tokens: ~${tokenCount}`);
+function stepContextDebug(stepName, taskName, entries) {
+	const FILE_COL = 40;
+	const NUM_COL = 8;
+	const sep = "─".repeat(FILE_COL + NUM_COL + NUM_COL);
+	function formatNum(n) {
+		return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	}
+	write(styled(`Context debug — ${stepName} (${taskName})`, c.bold, c.brightWhite));
+	write("");
+	write(styled("File".padEnd(FILE_COL), c.dim) + styled("Lines".padStart(NUM_COL), c.dim) + styled("Tokens".padStart(NUM_COL), c.dim));
+	write(styled(sep, c.gray));
+	for (const entry of entries) write((entry.label.length > FILE_COL ? `…${entry.label.slice(-(FILE_COL - 1))}` : entry.label).padEnd(FILE_COL) + String(entry.lines).padStart(NUM_COL) + formatNum(entry.tokens).padStart(NUM_COL));
+	const totalLines = entries.reduce((sum, e) => sum + e.lines, 0);
+	const totalTokens = entries.reduce((sum, e) => sum + e.tokens, 0);
+	write(styled(sep, c.gray));
+	write(styled("TOTAL".padEnd(FILE_COL), c.bold) + styled(String(totalLines).padStart(NUM_COL), c.bold) + styled(formatNum(totalTokens).padStart(NUM_COL), c.bold));
+}
+function flowPaused(stepName, taskName, generatedFile) {
+	write(`Flow paused after step "${stepName}".`);
+	if (generatedFile !== void 0) {
+		write(`Review the output at:`);
+		write(`  agentFlow/tasks/${taskName}/${generatedFile}`);
+	}
+	write(`Once the user has reviewed and approved, run:`);
+	write(`  agentflow next --resume`);
 }
 function stepComplete(stepName, unblocked) {
 	write(`Step complete: ${stepName}`);
@@ -502,6 +529,7 @@ const stepStateSchema = z.object({
 const taskStateSchema = z.object({
 	active: z.boolean(),
 	flow: z.string(),
+	pausedAfterStep: z.string().optional(),
 	steps: z.record(z.string(), stepStateSchema)
 });
 //#endregion
@@ -633,7 +661,11 @@ function completeCommand(args) {
 			state: "ready"
 		};
 	}
-	writeTaskState(taskDir, {
+	writeTaskState(taskDir, flow.steps.find((s) => s.name === stepName)?.pauseAfter === true ? {
+		...taskState,
+		steps: updatedSteps,
+		pausedAfterStep: stepName
+	} : {
 		...taskState,
 		steps: updatedSteps
 	});
@@ -666,47 +698,51 @@ function assembleContext(params) {
 	if (step === void 0) throw new Error(`Step "${stepName}" not found in flow "${flowName}".`);
 	const taskDir = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName);
 	const parts = [];
-	parts.push(`Step: ${stepName}`);
-	if (step.description !== void 0) parts.push(`Description: ${step.description}`);
+	const descAttr = step.description !== void 0 ? ` description="${step.description}"` : "";
+	parts.push(`<context step="${stepName}" task="${taskName}"${descAttr}>`);
 	if (stepState.state === "revision" && stepState.revisedBy !== void 0) {
 		const revisedBy = stepState.revisedBy;
-		parts.push("");
-		parts.push(`This step is being revised. It was marked for revision by step "${revisedBy}".`);
+		const lines = [`<revision revised-by="${revisedBy}">`, "This step is being revised."];
 		if (step.generates !== void 0) {
 			const prevFilePath = path.join(taskDir, step.generates);
 			if (fs.existsSync(prevFilePath)) {
-				const prevContent = fs.readFileSync(prevFilePath, "utf8");
-				parts.push("");
-				parts.push(`Previously generated output (${step.generates}):`);
-				parts.push(prevContent);
+				const content = fs.readFileSync(prevFilePath, "utf8");
+				const fp = [
+					DEFAULT_ROOT_FOLDER_NAME,
+					TASKS_FOLDER_NAME,
+					taskName,
+					step.generates
+				].join("/");
+				lines.push("", `<previous-output file="${fp}">`, content.trimEnd(), "</previous-output>");
 			}
 		}
 		const revisedByStep = flow.steps.find((s) => s.name === revisedBy);
 		if (revisedByStep?.generates !== void 0) {
 			const reviewFilePath = path.join(taskDir, revisedByStep.generates);
 			if (fs.existsSync(reviewFilePath)) {
-				const reviewContent = fs.readFileSync(reviewFilePath, "utf8");
-				parts.push("");
-				parts.push(`Review feedback (${revisedByStep.generates}):`);
-				parts.push(reviewContent);
+				const content = fs.readFileSync(reviewFilePath, "utf8");
+				const fp = [
+					DEFAULT_ROOT_FOLDER_NAME,
+					TASKS_FOLDER_NAME,
+					taskName,
+					revisedByStep.generates
+				].join("/");
+				lines.push("", `<review-feedback step="${revisedBy}" file="${fp}">`, content.trimEnd(), "</review-feedback>");
 			}
 		}
-		parts.push("");
-		parts.push("Rework this step based on the review feedback above.");
+		lines.push("", "Rework this step based on the review feedback above.", "</revision>");
+		parts.push(lines.join("\n"));
 	}
 	const instrPath = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, FLOWS_FOLDER_NAME, flowName, INSTRUCTIONS_FOLDER_NAME, step.context.instructions);
 	if (fs.existsSync(instrPath)) {
-		const instrContent = fs.readFileSync(instrPath, "utf8");
-		parts.push("");
-		parts.push(instrContent);
+		const content = fs.readFileSync(instrPath, "utf8");
+		parts.push(`<instructions>\n${content.trimEnd()}\n</instructions>`);
 	}
 	if (step.context.references !== void 0) for (const refPath of step.context.references) {
 		const absRefPath = path.join(projectRoot, refPath);
 		if (fs.existsSync(absRefPath)) {
-			const refContent = fs.readFileSync(absRefPath, "utf8");
-			parts.push("");
-			parts.push(`Reference (${refPath}):`);
-			parts.push(refContent);
+			const content = fs.readFileSync(absRefPath, "utf8");
+			parts.push(`<reference path="${refPath}">\n${content.trimEnd()}\n</reference>`);
 		}
 	}
 	const validatesStepNames = new Set((step.validates ?? []).map((e) => parseStepRef(e).stepName));
@@ -720,87 +756,130 @@ function assembleContext(params) {
 			if (contextStep.generates !== void 0) {
 				const genFilePath = path.join(taskDir, contextStep.generates);
 				if (!fs.existsSync(genFilePath)) throw new Error(`Generated file for step "${contextStepName}" not found: ${genFilePath}`);
-				parts.push("");
-				if (isRef) {
-					const refPath = [
-						DEFAULT_ROOT_FOLDER_NAME,
-						TASKS_FOLDER_NAME,
-						taskName,
-						contextStep.generates
-					].join("/");
-					parts.push(`Reference step "${contextStepName}" output at: ${refPath} — read this file before proceeding.`);
-				} else {
-					const genContent = fs.readFileSync(genFilePath, "utf8");
-					parts.push(`Output from step "${contextStepName}" (${contextStep.generates}):`);
-					parts.push(genContent);
+				const filePath = [
+					DEFAULT_ROOT_FOLDER_NAME,
+					TASKS_FOLDER_NAME,
+					taskName,
+					contextStep.generates
+				].join("/");
+				if (isRef) parts.push(`<step-ref step="${contextStepName}" path="${filePath}">\nThis output is large. Read the file at the path above before proceeding.\n</step-ref>`);
+				else {
+					const content = fs.readFileSync(genFilePath, "utf8");
+					parts.push(`<step-output step="${contextStepName}" file="${filePath}">\n${content.trimEnd()}\n</step-output>`);
 				}
 			}
-		} else if (contextStep.required === false) {
-			parts.push("");
-			parts.push(`Note: Optional step "${contextStepName}" was not completed — skipping context injection.`);
-		}
+		} else if (contextStep.required === false) parts.push(`<skipped-step step="${contextStepName}">\nOptional step was not completed — skipping context injection.\n</skipped-step>`);
 	}
 	const hasValidates = step.validates !== void 0 && step.validates.length > 0;
-	if (hasValidates && step.validates !== void 0) {
-		parts.push("");
-		parts.push("--- Steps to evaluate ---");
-		for (const validatedStepEntry of step.validates) {
-			const { stepName: validatedStepName, isRef } = parseStepRef(validatedStepEntry);
-			const validatedStep = flow.steps.find((s) => s.name === validatedStepName);
-			if (validatedStep?.generates === void 0) continue;
-			const genFilePath = path.join(taskDir, validatedStep.generates);
-			if (fs.existsSync(genFilePath)) {
-				parts.push("");
-				if (isRef) {
-					const refPath = [
-						DEFAULT_ROOT_FOLDER_NAME,
-						TASKS_FOLDER_NAME,
-						taskName,
-						validatedStep.generates
-					].join("/");
-					parts.push(`Evaluate step "${validatedStepName}": read the output at ${refPath} before making your pass/fail decision.`);
-				} else {
-					const genContent = fs.readFileSync(genFilePath, "utf8");
-					parts.push(`Step "${validatedStepName}" output (${validatedStep.generates}):`);
-					parts.push(genContent);
-				}
-			}
+	if (hasValidates && step.validates !== void 0) for (const validatedStepEntry of step.validates) {
+		const { stepName: validatedStepName, isRef } = parseStepRef(validatedStepEntry);
+		const validatedStep = flow.steps.find((s) => s.name === validatedStepName);
+		if (validatedStep?.generates === void 0) continue;
+		const genFilePath = path.join(taskDir, validatedStep.generates);
+		const filePath = [
+			DEFAULT_ROOT_FOLDER_NAME,
+			TASKS_FOLDER_NAME,
+			taskName,
+			validatedStep.generates
+		].join("/");
+		if (fs.existsSync(genFilePath)) if (isRef) parts.push(`<evaluate-ref step="${validatedStepName}" path="${filePath}">\nThis output is large. Read the file at the path above before making your pass/fail decision.\n</evaluate-ref>`);
+		else {
+			const content = fs.readFileSync(genFilePath, "utf8");
+			parts.push(`<evaluate step="${validatedStepName}" file="${filePath}">\n${content.trimEnd()}\n</evaluate>`);
 		}
 	}
 	if (step.generates !== void 0) {
 		const genPath = path.join(taskDir, step.generates);
 		const fileExists = fs.existsSync(genPath);
 		const strategy = step.generateStrategy ?? "replace";
-		parts.push("");
-		parts.push(`This step must generate the file: ${[
+		const filePath = [
 			DEFAULT_ROOT_FOLDER_NAME,
 			TASKS_FOLDER_NAME,
 			taskName,
 			step.generates
-		].join("/")}`);
-		if (strategy === "replace") if (fileExists) parts.push("Strategy: An existing version exists. Replace it entirely.");
-		else parts.push("Strategy: Create this file.");
-		else if (strategy === "update") if (fileExists) parts.push("Strategy: An existing version exists. Update it in place.");
-		else parts.push("Strategy: Create this file.");
-		else if (strategy === "version") if (fileExists) {
+		].join("/");
+		let strategyInstruction;
+		if (strategy === "replace") strategyInstruction = fileExists ? "An existing version exists. Replace it entirely." : "Create this file.";
+		else if (strategy === "update") strategyInstruction = fileExists ? "An existing version exists. Update it in place." : "Create this file.";
+		else if (fileExists) {
 			const revCount = stepState.revisionCount ?? 0;
 			const dotIndex = step.generates.lastIndexOf(".");
 			let versionedName;
 			if (dotIndex === -1) versionedName = `${step.generates}.v${revCount}`;
 			else versionedName = `${step.generates.slice(0, dotIndex)}.v${revCount}${step.generates.slice(dotIndex)}`;
-			parts.push(`Strategy: An existing version exists. Rename it to ${versionedName} before writing the new version.`);
-		} else parts.push("Strategy: Create this file.");
+			strategyInstruction = `An existing version exists. Rename it to ${versionedName} before writing the new version.`;
+		} else strategyInstruction = "Create this file.";
+		parts.push(`<generates file="${filePath}" strategy="${strategy}">\n${strategyInstruction}\n</generates>`);
 	}
 	if (hasValidates && step.validates !== void 0) {
-		parts.push("");
-		parts.push("Evaluate each of the above steps and decide pass or fail.");
-		parts.push(`First run: \`agentflow complete --step ${stepName} --task ${taskName}\``);
-		parts.push(`Then, for each step that fails, run: \`agentflow revise --step <name> --from ${stepName} --task ${taskName}\``);
-	} else {
-		parts.push("");
-		parts.push(`When this step is complete, run: \`agentflow complete --step ${stepName} --task ${taskName}\``);
+		const cmdLines = [
+			"Evaluate each of the above steps and decide pass or fail.",
+			`First run: \`agentflow complete --step ${stepName} --task ${taskName}\``,
+			`Then, for each step that fails, run: \`agentflow revise --step <name> --from ${stepName} --task ${taskName}\``
+		];
+		parts.push(`<next-command>\n${cmdLines.join("\n")}\n</next-command>`);
+	} else parts.push(`<next-command>agentflow complete --step ${stepName} --task ${taskName}</next-command>`);
+	parts.push("</context>");
+	return parts.join("\n\n");
+}
+function fileEntry(filePath, label) {
+	const content = fs.readFileSync(filePath, "utf8");
+	return {
+		label,
+		lines: content.split("\n").length,
+		tokens: Math.ceil(content.length / 4)
+	};
+}
+/**
+* Returns a list of files that would be assembled into the context, with line and token counts.
+* Used by `agentflow context --debug` to inspect context footprint without printing the full content.
+*/
+function assembleContextDebug(params) {
+	const { stepName, taskName, flowName, projectRoot, flow, stepState, taskStepStates } = params;
+	const step = flow.steps.find((s) => s.name === stepName);
+	if (step === void 0) throw new Error(`Step "${stepName}" not found in flow "${flowName}".`);
+	const taskDir = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName);
+	const entries = [];
+	if (stepState.state === "revision" && stepState.revisedBy !== void 0) {
+		const revisedBy = stepState.revisedBy;
+		if (step.generates !== void 0) {
+			const prevFilePath = path.join(taskDir, step.generates);
+			if (fs.existsSync(prevFilePath)) entries.push(fileEntry(prevFilePath, `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${step.generates}`));
+		}
+		const revisedByStep = flow.steps.find((s) => s.name === revisedBy);
+		if (revisedByStep?.generates !== void 0) {
+			const reviewFilePath = path.join(taskDir, revisedByStep.generates);
+			if (fs.existsSync(reviewFilePath)) entries.push(fileEntry(reviewFilePath, `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${revisedByStep.generates}`));
+		}
 	}
-	return parts.join("\n");
+	const instrPath = path.join(projectRoot, DEFAULT_ROOT_FOLDER_NAME, FLOWS_FOLDER_NAME, flowName, INSTRUCTIONS_FOLDER_NAME, step.context.instructions);
+	if (fs.existsSync(instrPath)) entries.push(fileEntry(instrPath, `${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/${flowName}/${INSTRUCTIONS_FOLDER_NAME}/${step.context.instructions}`));
+	if (step.context.references !== void 0) for (const refPath of step.context.references) {
+		const absRefPath = path.join(projectRoot, refPath);
+		if (fs.existsSync(absRefPath)) entries.push(fileEntry(absRefPath, refPath));
+	}
+	const validatesStepNames = new Set((step.validates ?? []).map((e) => parseStepRef(e).stepName));
+	if (step.context.steps !== void 0) for (const contextStepEntry of step.context.steps) {
+		const { stepName: contextStepName, isRef } = parseStepRef(contextStepEntry);
+		if (validatesStepNames.has(contextStepName)) continue;
+		if (isRef) continue;
+		const contextStep = flow.steps.find((s) => s.name === contextStepName);
+		const contextStepState = taskStepStates[contextStepName];
+		if (contextStepState === void 0 || contextStep === void 0) continue;
+		if (contextStepState.state === "done" && contextStep.generates !== void 0) {
+			const genFilePath = path.join(taskDir, contextStep.generates);
+			if (fs.existsSync(genFilePath)) entries.push(fileEntry(genFilePath, `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${contextStep.generates}`));
+		}
+	}
+	if (step.validates !== void 0) for (const validatedStepEntry of step.validates) {
+		const { stepName: validatedStepName, isRef } = parseStepRef(validatedStepEntry);
+		if (isRef) continue;
+		const validatedStep = flow.steps.find((s) => s.name === validatedStepName);
+		if (validatedStep?.generates === void 0) continue;
+		const genFilePath = path.join(taskDir, validatedStep.generates);
+		if (fs.existsSync(genFilePath)) entries.push(fileEntry(genFilePath, `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${validatedStep.generates}`));
+	}
+	return entries;
 }
 //#endregion
 //#region src/commands/context.ts
@@ -815,7 +894,7 @@ function contextCommand(args) {
 	const flow = loadFlow(projectRoot, taskState.flow);
 	const stepState = taskState.steps[args.stepName];
 	if (stepState === void 0) throw new Error(`Step "${args.stepName}" not found in task "${taskName}".`);
-	const content = assembleContext({
+	const assembleParams = {
 		stepName: args.stepName,
 		taskName,
 		flowName: taskState.flow,
@@ -823,9 +902,11 @@ function contextCommand(args) {
 		flow,
 		stepState,
 		taskStepStates: taskState.steps
-	});
-	if (args.tokens === true) stepContextTokens(Math.ceil(content.length / 4));
-	else stepContext(content);
+	};
+	if (args.debug === true) {
+		const entries = assembleContextDebug(assembleParams);
+		stepContextDebug(args.stepName, taskName, entries);
+	} else stepContext(assembleContext(assembleParams));
 }
 /**
 * CLI handler for `agentflow context`.
@@ -835,7 +916,7 @@ async function contextCommandHandler(options) {
 		contextCommand({
 			stepName: options.step,
 			...options.task !== void 0 && { taskName: options.task },
-			...options.tokens === true && { tokens: true }
+			...options.debug === true && { debug: true }
 		});
 	} catch (err) {
 		error(err);
@@ -993,7 +1074,7 @@ function copySkill(skillName, currentDir, toolRoot) {
 		initCreated(path.relative(currentDir, skillDestPath));
 	} else initWarning(`Bundled skill file for "${skillName}" not found — skipping`);
 }
-async function init() {
+async function init(options = {}) {
 	try {
 		const currentDir = process.cwd();
 		const mainFolderPath = path.join(currentDir, DEFAULT_ROOT_FOLDER_NAME);
@@ -1010,7 +1091,7 @@ async function init() {
 		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
 		let selectedFlows = [];
 		const bundledFlowsDir = getBundledFlowsDir();
-		if (bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
+		if (!options.default && bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
 			const bundledFlowNames = listDirs(bundledFlowsDir);
 			if (bundledFlowNames.length > 0) {
 				initSection("Bundled flows");
@@ -1029,83 +1110,89 @@ async function init() {
 				else initSkipped("No flows selected");
 			}
 		}
-		initSection("IDE integration");
-		const ideChoice = await select({
-			message: "Select your IDE for YAML schema support:",
-			choices: [
-				{
-					name: "VS Code",
-					value: "vscode"
-				},
-				{
-					name: "JetBrains (IntelliJ, WebStorm, etc.)",
-					value: "jetbrains"
-				},
-				{
-					name: "Zed",
-					value: "zed"
-				},
-				{
-					name: "None / skip",
-					value: "none"
-				}
-			]
-		});
-		if (ideChoice === "vscode") {
-			const settingsPath = writeVsCodeSettings(currentDir, SCHEMA_CDN_URL);
-			initCreated(path.relative(currentDir, settingsPath));
-		} else if (ideChoice === "jetbrains") {
-			const xmlPath = writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL);
-			initCreated(path.relative(currentDir, xmlPath));
-		} else if (ideChoice === "zed") {
-			const settingsPath = writeZedSettings(currentDir, SCHEMA_CDN_URL);
-			initCreated(path.relative(currentDir, settingsPath));
-		} else initSkipped("IDE configuration skipped");
-		initSection("AI tool integration");
-		const aiToolChoice = await select({
-			message: "Select your AI tool to inject the agentflow skill:",
-			choices: [
-				{
-					name: "Claude Code",
-					value: "claude-code"
-				},
-				{
-					name: "Cursor",
-					value: "cursor"
-				},
-				{
-					name: "Windsurf",
-					value: "windsurf"
-				},
-				{
-					name: "None / skip",
-					value: "none"
-				}
-			]
-		});
-		if (aiToolChoice !== "none") {
-			const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
-			if (toolRoot !== void 0) {
-				copySkill(SKILL_NAME, currentDir, toolRoot);
-				copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot);
-				if (aiToolChoice === "claude-code") initCreated(`${writeClaudeCodePermissions()} (permissions)`);
-				if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
-					const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
-					for (const flowName of selectedFlows) {
-						const agentsSrcDir = path.join(bundledFlowsDir, flowName, AGENTS_FOLDER_NAME);
-						if (fileExists(agentsSrcDir)) {
-							createFolder(agentsDestDir);
-							for (const agentFile of fs.readdirSync(agentsSrcDir)) {
-								const agentSrc = path.join(agentsSrcDir, agentFile);
-								const agentDest = path.join(agentsDestDir, agentFile);
-								fs.copyFileSync(agentSrc, agentDest);
-								initCreated(path.relative(currentDir, agentDest));
+		if (options.default) initSkipped("IDE configuration skipped");
+		else {
+			initSection("IDE integration");
+			const ideChoice = await select({
+				message: "Select your IDE for YAML schema support:",
+				choices: [
+					{
+						name: "VS Code",
+						value: "vscode"
+					},
+					{
+						name: "JetBrains (IntelliJ, WebStorm, etc.)",
+						value: "jetbrains"
+					},
+					{
+						name: "Zed",
+						value: "zed"
+					},
+					{
+						name: "None / skip",
+						value: "none"
+					}
+				]
+			});
+			if (ideChoice === "vscode") {
+				const settingsPath = writeVsCodeSettings(currentDir, SCHEMA_CDN_URL);
+				initCreated(path.relative(currentDir, settingsPath));
+			} else if (ideChoice === "jetbrains") {
+				const xmlPath = writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL);
+				initCreated(path.relative(currentDir, xmlPath));
+			} else if (ideChoice === "zed") {
+				const settingsPath = writeZedSettings(currentDir, SCHEMA_CDN_URL);
+				initCreated(path.relative(currentDir, settingsPath));
+			} else initSkipped("IDE configuration skipped");
+		}
+		if (options.default) initSkipped("AI tool integration skipped");
+		else {
+			initSection("AI tool integration");
+			const aiToolChoice = await select({
+				message: "Select your AI tool to inject the agentflow skill:",
+				choices: [
+					{
+						name: "Claude Code",
+						value: "claude-code"
+					},
+					{
+						name: "Cursor",
+						value: "cursor"
+					},
+					{
+						name: "Windsurf",
+						value: "windsurf"
+					},
+					{
+						name: "None / skip",
+						value: "none"
+					}
+				]
+			});
+			if (aiToolChoice !== "none") {
+				const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
+				if (toolRoot !== void 0) {
+					copySkill(SKILL_NAME, currentDir, toolRoot);
+					copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot);
+					if (aiToolChoice === "claude-code") initCreated(`${writeClaudeCodePermissions()} (permissions)`);
+					if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
+						const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
+						for (const flowName of selectedFlows) {
+							const agentsSrcDir = path.join(bundledFlowsDir, flowName, AGENTS_FOLDER_NAME);
+							if (fileExists(agentsSrcDir)) {
+								createFolder(agentsDestDir);
+								for (const agentFile of fs.readdirSync(agentsSrcDir)) {
+									const agentSrc = path.join(agentsSrcDir, agentFile);
+									const agentDest = path.join(agentsDestDir, agentFile);
+									fs.copyFileSync(agentSrc, agentDest);
+									initCreated(path.relative(currentDir, agentDest));
+								}
 							}
 						}
 					}
 				}
-			}
-		} else initSkipped("AI tool integration skipped");
+			} else initSkipped("AI tool integration skipped");
+		}
 		initSuccess();
 	} catch (err) {
 		error(err);
@@ -1209,16 +1296,26 @@ async function listTasksCommandHandler() {
 */
 function nextCommand(args) {
 	const projectRoot = args.projectRoot ?? process.cwd();
-	const { name: taskName, state: taskState } = resolveTask(projectRoot, args.taskName);
+	const { name: taskName, dir: taskDir, state: resolvedState } = resolveTask(projectRoot, args.taskName);
 	if (args.taskName !== void 0) setActiveTask(projectRoot, args.taskName);
-	const flow = loadFlow(projectRoot, taskState.flow);
+	const flow = loadFlow(projectRoot, resolvedState.flow);
+	let taskState = resolvedState;
+	if (taskState.pausedAfterStep !== void 0) if (args.resume) {
+		const { pausedAfterStep: _removed, ...stateWithoutPause } = taskState;
+		writeTaskState(taskDir, stateWithoutPause);
+		taskState = stateWithoutPause;
+	} else {
+		const pausedStepConfig = flow.steps.find((s) => s.name === taskState.pausedAfterStep);
+		flowPaused(taskState.pausedAfterStep, taskName, pausedStepConfig?.generates);
+		return;
+	}
 	if (isTaskComplete(taskState.steps)) {
 		taskComplete(taskName);
 		return;
 	}
-	const readyStepNames = resolveReadySteps(flow.steps, taskState.steps);
-	if (readyStepNames.length === 0) throw new Error(`No ready steps found for task "${taskName}".`);
-	if (args.parallel) nextParallel(readyStepNames.map((name) => {
+	const actionableStepNames = resolveActionableSteps(flow.steps, taskState.steps);
+	if (actionableStepNames.length === 0) throw new Error(`No ready steps found for task "${taskName}".`);
+	if (args.parallel) nextParallel(actionableStepNames.map((name) => {
 		const stepConfig = flow.steps.find((s) => s.name === name);
 		const subagent = stepConfig?.subagent === false ? void 0 : stepConfig?.subagent;
 		return subagent !== void 0 ? {
@@ -1227,10 +1324,11 @@ function nextCommand(args) {
 		} : { name };
 	}), taskName);
 	else {
-		const firstStepName = readyStepNames[0];
+		const firstStepName = actionableStepNames[0];
 		if (firstStepName === void 0) throw new Error(`No ready steps found for task "${taskName}".`);
+		const status = (taskState.steps[firstStepName]?.state ?? "ready") === "revision" ? "revision" : "ready";
 		const stepConfig = flow.steps.find((s) => s.name === firstStepName);
-		nextStep(firstStepName, stepConfig?.subagent === false ? void 0 : stepConfig?.subagent, taskName);
+		nextStep(firstStepName, status, stepConfig?.subagent === false ? void 0 : stepConfig?.subagent, taskName);
 	}
 }
 /**
@@ -1241,7 +1339,8 @@ async function nextCommandHandler(options) {
 	try {
 		nextCommand({
 			...options.task !== void 0 && { taskName: options.task },
-			...options.parallel !== void 0 && { parallel: options.parallel }
+			...options.parallel !== void 0 && { parallel: options.parallel },
+			...options.resume !== void 0 && { resume: options.resume }
 		});
 	} catch (err) {
 		error(err);
@@ -1457,11 +1556,11 @@ async function validateCommand(options) {
 //#region src/index.ts
 const program = new Command();
 program.name("agentflow").description("A CLI tool for managing agentic workflows").version("1.0.0");
-program.command("init").description("Initialize agentflow in the current directory").action(init);
+program.command("init").description("Initialize agentflow in the current directory").option("--default", "Non-interactive init: scaffold structure only, skip flows, IDE, and AI tool setup").action((opts) => init(opts));
 program.command("validate").description("Validate project config and flows").option("--flow <name>", "validate a single flow by name").action((options) => validateCommand(options));
 program.command("start").description("Create a new task and set it as active").requiredOption("--task <name>", "task name").option("--flow <name>", "flow name (defaults to defaultFlow)").action((options) => startCommandHandler(options));
-program.command("next").description("Get the next step(s) to work on").option("--task <name>", "task name (sets as active if given)").option("--parallel", "return all currently ready steps").action((options) => nextCommandHandler(options));
-program.command("context").description("Output full context for a step to inject into an agent prompt").requiredOption("--step <name>", "step name").option("--task <name>", "task name (sets as active if given)").option("--tokens", "output estimated token count instead of full context").action((options) => contextCommandHandler(options));
+program.command("next").description("Get the next step(s) to work on").option("--task <name>", "task name (sets as active if given)").option("--parallel", "return all currently ready steps").option("--resume", "clear a flow pause and proceed to the next step").action((options) => nextCommandHandler(options));
+program.command("context").description("Output full context for a step to inject into an agent prompt").requiredOption("--step <name>", "step name").option("--task <name>", "task name (sets as active if given)").option("--debug", "list all context files with line and token counts (replaces normal output)").action((options) => contextCommandHandler(options));
 program.command("state").description("Show the current state of all steps in a task").option("--task <name>", "task name (defaults to active task)").action((options) => stateCommandHandler(options));
 program.command("complete").description("Mark a step as done and unblock downstream steps").requiredOption("--step <name>", "step name").option("--task <name>", "task name (sets as active if given)").action((options) => completeCommandHandler(options));
 program.command("revise").description("Mark a step for revision and cascade downstream").requiredOption("--step <name>", "step name").requiredOption("--from <step>", "step triggering the revision").option("--task <name>", "task name (sets as active if given)").action((options) => reviseCommandHandler(options));

@@ -1,4 +1,4 @@
-import { assembleContext } from "../context/assembler.js";
+import { assembleContext, assembleContextDebug } from "../context/assembler.js";
 import { loadFlow } from "../flow/index.js";
 import * as output from "../output.js";
 import { resolveTask, setActiveTask } from "../task/resolver.js";
@@ -7,7 +7,7 @@ export type ContextArgs = {
   projectRoot?: string;
   stepName: string;
   taskName?: string;
-  tokens?: boolean;
+  debug?: boolean;
 };
 
 /**
@@ -29,7 +29,7 @@ export function contextCommand(args: ContextArgs): void {
     throw new Error(`Step "${args.stepName}" not found in task "${taskName}".`);
   }
 
-  const content = assembleContext({
+  const assembleParams = {
     stepName: args.stepName,
     taskName,
     flowName: taskState.flow,
@@ -37,11 +37,13 @@ export function contextCommand(args: ContextArgs): void {
     flow,
     stepState,
     taskStepStates: taskState.steps,
-  });
+  };
 
-  if (args.tokens === true) {
-    output.stepContextTokens(Math.ceil(content.length / 4));
+  if (args.debug === true) {
+    const entries = assembleContextDebug(assembleParams);
+    output.stepContextDebug(args.stepName, taskName, entries);
   } else {
+    const content = assembleContext(assembleParams);
     output.stepContext(content);
   }
 }
@@ -52,13 +54,13 @@ export function contextCommand(args: ContextArgs): void {
 export async function contextCommandHandler(options: {
   step: string;
   task?: string;
-  tokens?: boolean;
+  debug?: boolean;
 }): Promise<void> {
   try {
     contextCommand({
       stepName: options.step,
       ...(options.task !== undefined && { taskName: options.task }),
-      ...(options.tokens === true && { tokens: true }),
+      ...(options.debug === true && { debug: true }),
     });
   } catch (err) {
     output.error(err);

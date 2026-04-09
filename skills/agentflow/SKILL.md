@@ -2,6 +2,7 @@
 name: agentflow
 description: Agentflow is a workflow engine that manages step order, injects all context, and tracks state for AI agents. Always use this skill when agentflow is involved — it tells you exactly what to do and when. Never explore the project yourself when agentflow is running; the tool provides everything you need.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Agentflow

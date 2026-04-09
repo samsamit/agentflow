@@ -2,6 +2,7 @@
 name: agentflow-optimize
 description: Analyzes a completed agentflow step's instruction file against its generated artifact to identify gaps and suggest improvements. Use this skill whenever the user wants to improve, refine, or tune a step's instructions — especially after a step required multiple revisions, when the artifact doesn't fully match what the step's description promised, or when the user wants to make a flow perform better on future runs. If the user mentions improving instructions, tightening up a step, or reducing the number of revisions a flow requires, this is the skill to use.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Agentflow Optimize
