@@ -14,7 +14,7 @@ function makeTestProject(): string {
   fs.mkdirSync(path.join(projectRoot, "agentFlow", "flows", "plan"), { recursive: true });
   fs.writeFileSync(
     path.join(projectRoot, "agentFlow", "flows", "plan", ".agentflow.yaml"),
-    [
+    `${[
       "name: plan",
       "steps:",
       "  - name: research",
@@ -28,7 +28,7 @@ function makeTestProject(): string {
       "      - research",
       "    context:",
       "      instructions: implement.md",
-    ].join("\n") + "\n",
+    ].join("\n")}\n`,
   );
 
   return projectRoot;
@@ -39,7 +39,7 @@ function makePausedTask(projectRoot: string): string {
   fs.mkdirSync(taskDir, { recursive: true });
   fs.writeFileSync(
     path.join(taskDir, ".taskState.yaml"),
-    [
+    `${[
       "active: true",
       "flow: plan",
       "pausedAfterStep: research",
@@ -48,7 +48,7 @@ function makePausedTask(projectRoot: string): string {
       "    state: done",
       "  implement:",
       "    state: ready",
-    ].join("\n") + "\n",
+    ].join("\n")}\n`,
   );
   return taskDir;
 }
@@ -112,7 +112,7 @@ describe("nextCommand pause behavior", () => {
     fs.mkdirSync(taskDir, { recursive: true });
     fs.writeFileSync(
       path.join(taskDir, ".taskState.yaml"),
-      [
+      `${[
         "active: true",
         "flow: plan",
         "steps:",
@@ -120,7 +120,7 @@ describe("nextCommand pause behavior", () => {
         "    state: ready",
         "  implement:",
         "    state: blocked",
-      ].join("\n") + "\n",
+      ].join("\n")}\n`,
     );
 
     expect(() => nextCommand({ projectRoot, taskName: "my-feature", resume: true })).not.toThrow();

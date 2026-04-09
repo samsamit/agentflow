@@ -6,7 +6,10 @@ import { z } from "zod";
  */
 const stepRefSchema = z
   .string()
-  .regex(/^[\w-]+(:ref)?$/, 'Must be a step name or a step name followed by ":ref" (e.g. "research:ref")');
+  .regex(
+    /^[\w-]+(:ref)?$/,
+    'Must be a step name or a step name followed by ":ref" (e.g. "research:ref")',
+  );
 
 /**
  * Parses a step reference entry into its step name and injection mode.

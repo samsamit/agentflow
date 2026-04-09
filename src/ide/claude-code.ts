@@ -40,7 +40,7 @@ export function writeClaudeCodePermissions(): string {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
+  fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
 
   return settingsPath;
 }

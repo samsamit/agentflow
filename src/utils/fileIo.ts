@@ -121,11 +121,7 @@ export function copyFile(sourcePath: string, destPath: string): void {
  * Entries whose names appear in `exclude` are skipped (top-level only).
  * Throws if sourceDir does not exist.
  */
-export function copyDirRecursive(
-  sourceDir: string,
-  destDir: string,
-  exclude: string[] = [],
-): void {
+export function copyDirRecursive(sourceDir: string, destDir: string, exclude: string[] = []): void {
   if (!fs.existsSync(sourceDir)) {
     throw new Error(`Source directory not found: ${sourceDir}`);
   }

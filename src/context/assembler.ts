@@ -54,7 +54,9 @@ export function assembleContext(params: AssembleContextParams): string {
       const prevFilePath = path.join(taskDir, step.generates);
       if (fs.existsSync(prevFilePath)) {
         const content = fs.readFileSync(prevFilePath, "utf8");
-        const fp = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, step.generates].join("/");
+        const fp = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, step.generates].join(
+          "/",
+        );
         lines.push("", `<previous-output file="${fp}">`, content.trimEnd(), "</previous-output>");
       }
     }
@@ -64,8 +66,18 @@ export function assembleContext(params: AssembleContextParams): string {
       const reviewFilePath = path.join(taskDir, revisedByStep.generates);
       if (fs.existsSync(reviewFilePath)) {
         const content = fs.readFileSync(reviewFilePath, "utf8");
-        const fp = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, revisedByStep.generates].join("/");
-        lines.push("", `<review-feedback step="${revisedBy}" file="${fp}">`, content.trimEnd(), "</review-feedback>");
+        const fp = [
+          DEFAULT_ROOT_FOLDER_NAME,
+          TASKS_FOLDER_NAME,
+          taskName,
+          revisedByStep.generates,
+        ].join("/");
+        lines.push(
+          "",
+          `<review-feedback step="${revisedBy}" file="${fp}">`,
+          content.trimEnd(),
+          "</review-feedback>",
+        );
       }
     }
 
@@ -117,16 +129,27 @@ export function assembleContext(params: AssembleContextParams): string {
               `Generated file for step "${contextStepName}" not found: ${genFilePath}`,
             );
           }
-          const filePath = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, contextStep.generates].join("/");
+          const filePath = [
+            DEFAULT_ROOT_FOLDER_NAME,
+            TASKS_FOLDER_NAME,
+            taskName,
+            contextStep.generates,
+          ].join("/");
           if (isRef) {
-            parts.push(`<step-ref step="${contextStepName}" path="${filePath}">\nThis output is large. Read the file at the path above before proceeding.\n</step-ref>`);
+            parts.push(
+              `<step-ref step="${contextStepName}" path="${filePath}">\nThis output is large. Read the file at the path above before proceeding.\n</step-ref>`,
+            );
           } else {
             const content = fs.readFileSync(genFilePath, "utf8");
-            parts.push(`<step-output step="${contextStepName}" file="${filePath}">\n${content.trimEnd()}\n</step-output>`);
+            parts.push(
+              `<step-output step="${contextStepName}" file="${filePath}">\n${content.trimEnd()}\n</step-output>`,
+            );
           }
         }
       } else if (contextStep.required === false) {
-        parts.push(`<skipped-step step="${contextStepName}">\nOptional step was not completed — skipping context injection.\n</skipped-step>`);
+        parts.push(
+          `<skipped-step step="${contextStepName}">\nOptional step was not completed — skipping context injection.\n</skipped-step>`,
+        );
       }
     }
   }
@@ -140,13 +163,22 @@ export function assembleContext(params: AssembleContextParams): string {
       const validatedStep = flow.steps.find((s) => s.name === validatedStepName);
       if (validatedStep?.generates === undefined) continue;
       const genFilePath = path.join(taskDir, validatedStep.generates);
-      const filePath = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, validatedStep.generates].join("/");
+      const filePath = [
+        DEFAULT_ROOT_FOLDER_NAME,
+        TASKS_FOLDER_NAME,
+        taskName,
+        validatedStep.generates,
+      ].join("/");
       if (fs.existsSync(genFilePath)) {
         if (isRef) {
-          parts.push(`<evaluate-ref step="${validatedStepName}" path="${filePath}">\nThis output is large. Read the file at the path above before making your pass/fail decision.\n</evaluate-ref>`);
+          parts.push(
+            `<evaluate-ref step="${validatedStepName}" path="${filePath}">\nThis output is large. Read the file at the path above before making your pass/fail decision.\n</evaluate-ref>`,
+          );
         } else {
           const content = fs.readFileSync(genFilePath, "utf8");
-          parts.push(`<evaluate step="${validatedStepName}" file="${filePath}">\n${content.trimEnd()}\n</evaluate>`);
+          parts.push(
+            `<evaluate step="${validatedStepName}" file="${filePath}">\n${content.trimEnd()}\n</evaluate>`,
+          );
         }
       }
     }
@@ -157,7 +189,9 @@ export function assembleContext(params: AssembleContextParams): string {
     const genPath = path.join(taskDir, step.generates);
     const fileExists = fs.existsSync(genPath);
     const strategy = step.generateStrategy ?? "replace";
-    const filePath = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, step.generates].join("/");
+    const filePath = [DEFAULT_ROOT_FOLDER_NAME, TASKS_FOLDER_NAME, taskName, step.generates].join(
+      "/",
+    );
 
     let strategyInstruction: string;
     if (strategy === "replace") {
@@ -186,7 +220,9 @@ export function assembleContext(params: AssembleContextParams): string {
       }
     }
 
-    parts.push(`<generates file="${filePath}" strategy="${strategy}">\n${strategyInstruction}\n</generates>`);
+    parts.push(
+      `<generates file="${filePath}" strategy="${strategy}">\n${strategyInstruction}\n</generates>`,
+    );
   }
 
   // 8. Completion instruction
@@ -198,7 +234,9 @@ export function assembleContext(params: AssembleContextParams): string {
     ];
     parts.push(`<next-command>\n${cmdLines.join("\n")}\n</next-command>`);
   } else {
-    parts.push(`<next-command>agentflow complete --step ${stepName} --task ${taskName}</next-command>`);
+    parts.push(
+      `<next-command>agentflow complete --step ${stepName} --task ${taskName}</next-command>`,
+    );
   }
 
   // 9. Closing tag
@@ -238,7 +276,12 @@ export function assembleContextDebug(params: AssembleContextParams): ContextFile
     if (step.generates !== undefined) {
       const prevFilePath = path.join(taskDir, step.generates);
       if (fs.existsSync(prevFilePath)) {
-        entries.push(fileEntry(prevFilePath, `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${step.generates}`));
+        entries.push(
+          fileEntry(
+            prevFilePath,
+            `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${step.generates}`,
+          ),
+        );
       }
     }
 
@@ -246,7 +289,12 @@ export function assembleContextDebug(params: AssembleContextParams): ContextFile
     if (revisedByStep?.generates !== undefined) {
       const reviewFilePath = path.join(taskDir, revisedByStep.generates);
       if (fs.existsSync(reviewFilePath)) {
-        entries.push(fileEntry(reviewFilePath, `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${revisedByStep.generates}`));
+        entries.push(
+          fileEntry(
+            reviewFilePath,
+            `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${revisedByStep.generates}`,
+          ),
+        );
       }
     }
   }
@@ -261,7 +309,12 @@ export function assembleContextDebug(params: AssembleContextParams): ContextFile
     step.context.instructions,
   );
   if (fs.existsSync(instrPath)) {
-    entries.push(fileEntry(instrPath, `${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/${flowName}/${INSTRUCTIONS_FOLDER_NAME}/${step.context.instructions}`));
+    entries.push(
+      fileEntry(
+        instrPath,
+        `${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/${flowName}/${INSTRUCTIONS_FOLDER_NAME}/${step.context.instructions}`,
+      ),
+    );
   }
 
   // Reference files
@@ -289,7 +342,12 @@ export function assembleContextDebug(params: AssembleContextParams): ContextFile
       if (contextStepState.state === "done" && contextStep.generates !== undefined) {
         const genFilePath = path.join(taskDir, contextStep.generates);
         if (fs.existsSync(genFilePath)) {
-          entries.push(fileEntry(genFilePath, `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${contextStep.generates}`));
+          entries.push(
+            fileEntry(
+              genFilePath,
+              `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${contextStep.generates}`,
+            ),
+          );
         }
       }
     }
@@ -304,7 +362,12 @@ export function assembleContextDebug(params: AssembleContextParams): ContextFile
       if (validatedStep?.generates === undefined) continue;
       const genFilePath = path.join(taskDir, validatedStep.generates);
       if (fs.existsSync(genFilePath)) {
-        entries.push(fileEntry(genFilePath, `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${validatedStep.generates}`));
+        entries.push(
+          fileEntry(
+            genFilePath,
+            `${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/${taskName}/${validatedStep.generates}`,
+          ),
+        );
       }
     }
   }

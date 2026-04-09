@@ -21,7 +21,11 @@ export function nextCommand(args: NextArgs): void {
   const projectRoot = args.projectRoot ?? process.cwd();
 
   // Resolve (and validate) the task first, then set it active if explicitly named
-  const { name: taskName, dir: taskDir, state: resolvedState } = resolveTask(projectRoot, args.taskName);
+  const {
+    name: taskName,
+    dir: taskDir,
+    state: resolvedState,
+  } = resolveTask(projectRoot, args.taskName);
   if (args.taskName !== undefined) {
     setActiveTask(projectRoot, args.taskName);
   }

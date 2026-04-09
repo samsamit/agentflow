@@ -145,7 +145,7 @@ describe("completeCommand integration", () => {
     fs.mkdirSync(path.join(projectRoot, "agentFlow", "flows", "plan"), { recursive: true });
     fs.writeFileSync(
       path.join(projectRoot, "agentFlow", "flows", "plan", ".agentflow.yaml"),
-      [
+      `${[
         "name: plan",
         "steps:",
         "  - name: research",
@@ -158,14 +158,22 @@ describe("completeCommand integration", () => {
         "      - research",
         "    context:",
         "      instructions: implement.md",
-      ].join("\n") + "\n",
+      ].join("\n")}\n`,
     );
 
     const taskDir = path.join(projectRoot, "agentFlow", "tasks", "my-feature");
     fs.mkdirSync(taskDir, { recursive: true });
     fs.writeFileSync(
       path.join(taskDir, ".taskState.yaml"),
-      ["active: true", "flow: plan", "steps:", "  research:", "    state: ready", "  implement:", "    state: blocked"].join("\n") + "\n",
+      `${[
+        "active: true",
+        "flow: plan",
+        "steps:",
+        "  research:",
+        "    state: ready",
+        "  implement:",
+        "    state: blocked",
+      ].join("\n")}\n`,
     );
 
     completeCommand({ projectRoot, stepName: "research", taskName: "my-feature" });

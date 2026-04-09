@@ -21,7 +21,10 @@ program.name("agentflow").description("A CLI tool for managing agentic workflows
 program
   .command("init")
   .description("Initialize agentflow in the current directory")
-  .option("--default", "Non-interactive init: scaffold structure only, skip flows, IDE, and AI tool setup")
+  .option(
+    "--default",
+    "Non-interactive init: scaffold structure only, skip flows, IDE, and AI tool setup",
+  )
   .action((opts: { default?: boolean }) => init(opts));
 
 program
@@ -43,7 +46,9 @@ program
   .option("--task <name>", "task name (sets as active if given)")
   .option("--parallel", "return all currently ready steps")
   .option("--resume", "clear a flow pause and proceed to the next step")
-  .action((options: { task?: string; parallel?: boolean; resume?: boolean }) => nextCommandHandler(options));
+  .action((options: { task?: string; parallel?: boolean; resume?: boolean }) =>
+    nextCommandHandler(options),
+  );
 
 program
   .command("context")
@@ -51,7 +56,9 @@ program
   .requiredOption("--step <name>", "step name")
   .option("--task <name>", "task name (sets as active if given)")
   .option("--debug", "list all context files with line and token counts (replaces normal output)")
-  .action((options: { step: string; task?: string; debug?: boolean }) => contextCommandHandler(options));
+  .action((options: { step: string; task?: string; debug?: boolean }) =>
+    contextCommandHandler(options),
+  );
 
 program
   .command("state")

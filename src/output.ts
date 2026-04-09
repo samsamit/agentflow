@@ -205,17 +205,19 @@ export function stepContextDebug(
   write("");
   write(
     styled("File".padEnd(FILE_COL), c.dim) +
-    styled("Lines".padStart(NUM_COL), c.dim) +
-    styled("Tokens".padStart(NUM_COL), c.dim),
+      styled("Lines".padStart(NUM_COL), c.dim) +
+      styled("Tokens".padStart(NUM_COL), c.dim),
   );
   write(styled(sep, c.gray));
 
   for (const entry of entries) {
     const label =
-      entry.label.length > FILE_COL
-        ? `…${entry.label.slice(-(FILE_COL - 1))}`
-        : entry.label;
-    write(label.padEnd(FILE_COL) + String(entry.lines).padStart(NUM_COL) + formatNum(entry.tokens).padStart(NUM_COL));
+      entry.label.length > FILE_COL ? `…${entry.label.slice(-(FILE_COL - 1))}` : entry.label;
+    write(
+      label.padEnd(FILE_COL) +
+        String(entry.lines).padStart(NUM_COL) +
+        formatNum(entry.tokens).padStart(NUM_COL),
+    );
   }
 
   const totalLines = entries.reduce((sum, e) => sum + e.lines, 0);
@@ -224,8 +226,8 @@ export function stepContextDebug(
   write(styled(sep, c.gray));
   write(
     styled("TOTAL".padEnd(FILE_COL), c.bold) +
-    styled(String(totalLines).padStart(NUM_COL), c.bold) +
-    styled(formatNum(totalTokens).padStart(NUM_COL), c.bold),
+      styled(String(totalLines).padStart(NUM_COL), c.bold) +
+      styled(formatNum(totalTokens).padStart(NUM_COL), c.bold),
   );
 }
 
