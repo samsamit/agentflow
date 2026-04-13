@@ -85,6 +85,11 @@ export function initDescription(text: string): void {
   write(`  ${styled(text, c.dim, c.gray)}`);
 }
 
+export function initSettingDescription(text: string): void {
+  write(`  ${styled("›", c.cyan)}  ${styled(text, c.white)}`);
+  write("");
+}
+
 export function initDeclined(label: string): void {
   write(
     `  ${styled("↩", c.yellow)}  ${styled(label, c.dim, c.gray)}  ${styled("(kept existing)", c.dim, c.gray)}`,

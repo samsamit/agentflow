@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkbox, confirm, select } from "@inquirer/prompts";
+import { checkbox, confirm, input, select } from "@inquirer/prompts";
 import {
   AGENTS_FOLDER_NAME,
   AI_TOOL_ROOTS,
@@ -15,7 +15,11 @@ import {
   SKILLS_FOLDER_NAME,
   TASKS_FOLDER_NAME,
 } from "../constants.js";
-import { writeClaudeCodePermissions } from "../ide/claude-code.js";
+import {
+  readClaudeCodeLocalSettings,
+  writeClaudeCodeLocalSettings,
+  writeClaudeCodePermissions,
+} from "../ide/claude-code.js";
 import { writeJetBrainsSchema } from "../ide/jetbrains.js";
 import { writeVsCodeSettings } from "../ide/vscode.js";
 import { writeZedSettings } from "../ide/zed.js";
@@ -131,17 +135,27 @@ export async function init(options: { default?: boolean } = {}) {
 
     // --- Directory structure ---
     output.initSection("Setting up project structure");
-    createFolder(mainFolderPath);
-    output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/`);
 
-    writeFile(configFilePath, configTemplate);
-    output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
+    const mainFolderResult = createFolder(mainFolderPath);
+    if (mainFolderResult.alreadyExists) output.initSkipped(`${DEFAULT_ROOT_FOLDER_NAME}/`);
+    else output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/`);
 
-    createFolder(path.join(mainFolderPath, TASKS_FOLDER_NAME));
-    output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
+    if (fileExists(configFilePath)) {
+      output.initSkipped(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
+    } else {
+      writeFile(configFilePath, configTemplate);
+      output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
+    }
 
-    createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
-    output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
+    const tasksFolderResult = createFolder(path.join(mainFolderPath, TASKS_FOLDER_NAME));
+    if (tasksFolderResult.alreadyExists)
+      output.initSkipped(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
+    else output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
+
+    const flowsFolderResult = createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
+    if (flowsFolderResult.alreadyExists)
+      output.initSkipped(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
+    else output.initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
 
     // --- Copy bundled flows ---
     let selectedFlows: string[] = [];
@@ -248,6 +262,65 @@ export async function init(options: { default?: boolean } = {}) {
           if (aiToolChoice === "claude-code") {
             const { result, filePath } = writeClaudeCodePermissions();
             outputForResult(result, `${filePath} (permissions)`);
+
+            // Local project settings — .claude/settings.local.json
+            output.initSection("Claude Code project settings");
+            output.initDescription(
+              "Writes .claude/settings.local.json with recommended settings for agentflow workflows.",
+            );
+
+            const existingLocalSettings = readClaudeCodeLocalSettings(currentDir);
+
+            let defaultMode = existingLocalSettings.defaultMode ?? "acceptEdits";
+            let bashTimeoutMs = existingLocalSettings.bashTimeoutMs ?? "300000";
+            let autocompactPct = existingLocalSettings.autocompactPct ?? "80";
+
+            if (!options.default) {
+              output.initSettingDescription(
+                "defaultMode: How Claude handles permission requests during workflow steps.",
+              );
+              defaultMode = await select<string>({
+                message: `Default permission mode [${existingLocalSettings.defaultMode !== undefined ? `current: ${existingLocalSettings.defaultMode}` : "default: acceptEdits"}]:`,
+                default: defaultMode,
+                choices: [
+                  {
+                    name: "acceptEdits  (recommended) — auto-approve file edits for autonomous step execution",
+                    value: "acceptEdits",
+                  },
+                  {
+                    name: "default — prompt for approval on each action",
+                    value: "default",
+                  },
+                ],
+              });
+              output.info("");
+
+              output.initSettingDescription(
+                "BASH_DEFAULT_TIMEOUT_MS: How long a bash command can run before timing out. Default is 120 000 ms (2 min) — workflow steps involving builds or tests often need more.",
+              );
+              bashTimeoutMs = await input({
+                message: `Bash timeout (ms) [${existingLocalSettings.bashTimeoutMs !== undefined ? `current: ${existingLocalSettings.bashTimeoutMs}` : "default: 300000"}]:`,
+                default: bashTimeoutMs,
+              });
+              output.info("");
+
+              output.initSettingDescription(
+                "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: Context usage % at which auto-compaction triggers. Default is ~95% — compacting at 80% avoids mid-step interruption.",
+              );
+              autocompactPct = await input({
+                message: `Auto-compact at (% of context) [${existingLocalSettings.autocompactPct !== undefined ? `current: ${existingLocalSettings.autocompactPct}` : "default: 80"}]:`,
+                default: autocompactPct,
+              });
+              output.info("");
+            }
+
+            const { result: localResult, filePath: localFilePath } =
+              writeClaudeCodeLocalSettings(currentDir, {
+                defaultMode,
+                bashTimeoutMs,
+                autocompactPct,
+              });
+            outputForResult(localResult, path.relative(currentDir, localFilePath));
           }
 
           // Agent injection — install agent files bundled with each selected flow

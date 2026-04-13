@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { parse, stringify } from "yaml";
 import { z } from "zod";
 import { fileURLToPath } from "node:url";
-import { checkbox, confirm, select } from "@inquirer/prompts";
+import { checkbox, confirm, input, select } from "@inquirer/prompts";
 import * as os from "node:os";
 //#region src/constants.ts
 const DEFAULT_ROOT_FOLDER_NAME = "agentFlow";
@@ -403,6 +403,10 @@ function initWarning(label) {
 }
 function initDescription(text) {
 	write(`  ${styled(text, c.dim, c.gray)}`);
+}
+function initSettingDescription(text) {
+	write(`  ${styled("›", c.cyan)}  ${styled(text, c.white)}`);
+	write("");
 }
 function initDeclined(label) {
 	write(`  ${styled("↩", c.yellow)}  ${styled(label, c.dim, c.gray)}  ${styled("(kept existing)", c.dim, c.gray)}`);
@@ -976,6 +980,77 @@ function writeClaudeCodePermissions() {
 		filePath: settingsPath
 	};
 }
+/**
+* Reads existing agentflow-relevant values from .claude/settings.local.json.
+* Returns undefined for any value not yet set.
+*/
+function readClaudeCodeLocalSettings(projectDir) {
+	const settingsPath = path.join(projectDir, ".claude", "settings.local.json");
+	if (!fs.existsSync(settingsPath)) return {
+		defaultMode: void 0,
+		bashTimeoutMs: void 0,
+		autocompactPct: void 0
+	};
+	try {
+		const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+		const perms = typeof settings.permissions === "object" && settings.permissions !== null ? settings.permissions : {};
+		const env = typeof settings.env === "object" && settings.env !== null ? settings.env : {};
+		return {
+			defaultMode: typeof perms.defaultMode === "string" ? perms.defaultMode : void 0,
+			bashTimeoutMs: typeof env["BASH_DEFAULT_TIMEOUT_MS"] === "string" ? env["BASH_DEFAULT_TIMEOUT_MS"] : void 0,
+			autocompactPct: typeof env["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"] === "string" ? env["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"] : void 0
+		};
+	} catch {
+		return {
+			defaultMode: void 0,
+			bashTimeoutMs: void 0,
+			autocompactPct: void 0
+		};
+	}
+}
+const LOCAL_SETTINGS_SCHEMA = "https://json.schemastore.org/claude-code-settings.json";
+const LOCAL_PERMISSION_RULES = [
+	"Bash(agentflow:*)",
+	"Bash(npx agentflow:*)",
+	"Skill(agentflow)",
+	"Skill(agentflow-optimize)"
+];
+/**
+* Writes agentflow-recommended settings to .claude/settings.local.json in the project.
+* Merges with any existing content. Returns "skipped" if nothing changed.
+*/
+function writeClaudeCodeLocalSettings(projectDir, options) {
+	const settingsPath = path.join(projectDir, ".claude", "settings.local.json");
+	let settings = {};
+	if (fs.existsSync(settingsPath)) try {
+		settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+	} catch {
+		settings = {};
+	}
+	const before = JSON.stringify(settings);
+	settings.$schema = LOCAL_SETTINGS_SCHEMA;
+	if (typeof settings.permissions !== "object" || settings.permissions === null) settings.permissions = {};
+	const perms = settings.permissions;
+	if (!Array.isArray(perms.allow)) perms.allow = [];
+	const allow = perms.allow;
+	for (const rule of LOCAL_PERMISSION_RULES) if (!allow.includes(rule)) allow.push(rule);
+	perms.defaultMode = options.defaultMode;
+	if (typeof settings.env !== "object" || settings.env === null) settings.env = {};
+	const env = settings.env;
+	env["BASH_DEFAULT_TIMEOUT_MS"] = options.bashTimeoutMs;
+	env["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"] = options.autocompactPct;
+	if (JSON.stringify(settings) === before) return {
+		result: "skipped",
+		filePath: settingsPath
+	};
+	const dir = path.dirname(settingsPath);
+	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+	fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+	return {
+		result: "written",
+		filePath: settingsPath
+	};
+}
 //#endregion
 //#region src/ide/jetbrains.ts
 function buildXml(schemaUrl) {
@@ -1178,14 +1253,17 @@ async function init(options = {}) {
 		const confirmFn = options.default === true ? async () => true : async (message) => confirm({ message });
 		banner();
 		initSection("Setting up project structure");
-		createFolder(mainFolderPath);
-		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/`);
-		writeFile(configFilePath, config_default);
-		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
-		createFolder(path.join(mainFolderPath, TASKS_FOLDER_NAME));
-		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
-		createFolder(path.join(mainFolderPath, FLOWS_FOLDER_NAME));
-		initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
+		if (createFolder(mainFolderPath).alreadyExists) initSkipped(`${DEFAULT_ROOT_FOLDER_NAME}/`);
+		else initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/`);
+		if (fileExists(configFilePath)) initSkipped(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
+		else {
+			writeFile(configFilePath, config_default);
+			initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${CONFIG_FILE_NAME}`);
+		}
+		if (createFolder(path.join(mainFolderPath, "tasks")).alreadyExists) initSkipped(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
+		else initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${TASKS_FOLDER_NAME}/`);
+		if (createFolder(path.join(mainFolderPath, "flows")).alreadyExists) initSkipped(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
+		else initCreated(`${DEFAULT_ROOT_FOLDER_NAME}/${FLOWS_FOLDER_NAME}/`);
 		let selectedFlows = [];
 		const bundledFlowsDir = getBundledFlowsDir();
 		if (!options.default && bundledFlowsDir !== "" && fileExists(bundledFlowsDir)) {
@@ -1279,6 +1357,45 @@ async function init(options = {}) {
 					if (aiToolChoice === "claude-code") {
 						const { result, filePath } = writeClaudeCodePermissions();
 						outputForResult(result, `${filePath} (permissions)`);
+						initSection("Claude Code project settings");
+						initDescription("Writes .claude/settings.local.json with recommended settings for agentflow workflows.");
+						const existingLocalSettings = readClaudeCodeLocalSettings(currentDir);
+						let defaultMode = existingLocalSettings.defaultMode ?? "acceptEdits";
+						let bashTimeoutMs = existingLocalSettings.bashTimeoutMs ?? "300000";
+						let autocompactPct = existingLocalSettings.autocompactPct ?? "80";
+						if (!options.default) {
+							initSettingDescription("defaultMode: How Claude handles permission requests during workflow steps.");
+							defaultMode = await select({
+								message: `Default permission mode [${existingLocalSettings.defaultMode !== void 0 ? `current: ${existingLocalSettings.defaultMode}` : "default: acceptEdits"}]:`,
+								default: defaultMode,
+								choices: [{
+									name: "acceptEdits  (recommended) — auto-approve file edits for autonomous step execution",
+									value: "acceptEdits"
+								}, {
+									name: "default — prompt for approval on each action",
+									value: "default"
+								}]
+							});
+							info("");
+							initSettingDescription("BASH_DEFAULT_TIMEOUT_MS: How long a bash command can run before timing out. Default is 120 000 ms (2 min) — workflow steps involving builds or tests often need more.");
+							bashTimeoutMs = await input({
+								message: `Bash timeout (ms) [${existingLocalSettings.bashTimeoutMs !== void 0 ? `current: ${existingLocalSettings.bashTimeoutMs}` : "default: 300000"}]:`,
+								default: bashTimeoutMs
+							});
+							info("");
+							initSettingDescription("CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: Context usage % at which auto-compaction triggers. Default is ~95% — compacting at 80% avoids mid-step interruption.");
+							autocompactPct = await input({
+								message: `Auto-compact at (% of context) [${existingLocalSettings.autocompactPct !== void 0 ? `current: ${existingLocalSettings.autocompactPct}` : "default: 80"}]:`,
+								default: autocompactPct
+							});
+							info("");
+						}
+						const { result: localResult, filePath: localFilePath } = writeClaudeCodeLocalSettings(currentDir, {
+							defaultMode,
+							bashTimeoutMs,
+							autocompactPct
+						});
+						outputForResult(localResult, path.relative(currentDir, localFilePath));
 					}
 					if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
 						const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
