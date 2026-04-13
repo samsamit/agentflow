@@ -24,7 +24,10 @@
       "Bash(npx biome:*)",
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:json.schemastore.org)",
-      "WebFetch(domain:www.schemastore.org)"
+      "WebFetch(domain:www.schemastore.org)",
+      "Bash(figlet -f slant \"agentflow\")",
+      "Bash(figlet \"agentflow\")",
+      "WebFetch(domain:gist.github.com)"
     ]
   }
 }
