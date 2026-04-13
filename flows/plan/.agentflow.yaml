@@ -19,7 +19,18 @@ steps:
       - research
     generates: plan.md
     generateStrategy: replace
+    pauseAfter: true
     context:
       instructions: plan.md
       steps:
         - research
+  
+  - name: implement
+    description: Implement the plan
+    required: true
+    requires:
+      - plan
+    context:
+      instructions: implementation.md
+      steps:
+        - plan

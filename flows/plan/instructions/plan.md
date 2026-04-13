@@ -12,7 +12,7 @@ Create a clear, actionable implementation plan. Do not implement anything — th
 
 Write a plan covering:
 - Chosen approach and rationale
-- Ordered implementation steps as checkboxes
+- Ordered implementation steps as a checkbox task list (e.g. `- [ ] Step description`)
 - Any trade-offs or decisions made
 
-Make the steps specific enough to act on directly. This plan is the deliverable — implementation happens separately after this flow completes.
+Each checkbox item is one discrete implementation task. Make steps specific enough to act on directly — the implementation step will execute them one by one.
