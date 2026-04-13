@@ -11,13 +11,17 @@ Use this skill to improve a step's instruction file by comparing it against what
 
 ## Workflow
 
-### 1. Identify the step
+### 1. Identify the step and flow
 
-If the user hasn't specified a step name, ask: "Which step do you want to optimize?"
+Determine the step name and flow name from what the user provided:
+
+- If the user specified both a step name and a flow name, use them.
+- If the user specified only a step name, ask: "Which flow does that step belong to? (leave blank to use the default flow)"
+- If the user specified neither, ask: "Which step do you want to optimize, and which flow does it belong to? (flow is optional — leave blank to use the default flow)"
+
+If no flow name is given, read `agentFlow/.agentflow.yaml` and use the `defaultFlow` value. Confirm to the user which flow you are targeting before continuing.
 
 ### 2. Locate the files
-
-Read `agentFlow/.agentflow.yaml` to get the `defaultFlow` name.
 
 Read `agentFlow/flows/<flow-name>/.agentflow.yaml` to find the step's config entry. You need:
 - `description` — the intended goal of the step (may be absent; that's fine)

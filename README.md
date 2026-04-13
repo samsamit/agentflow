@@ -31,6 +31,7 @@
   - **Bundled flows**
     - [plan](docs/flows/plan.md) — lightweight planning: explore, interview, produce a plan
     - [vsdd](docs/flows/vsdd.md) — Verified Spec-Driven Development: spec → TDD → adversarial review → formal hardening
+  - [Optimizing flows](docs/optimize.md) — improve step instructions after a flow run using the agentflow-optimize skill
 
 
 
