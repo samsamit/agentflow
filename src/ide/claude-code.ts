@@ -77,12 +77,10 @@ export function readClaudeCodeLocalSettings(projectDir: string): ExistingLocalSe
     return {
       defaultMode: typeof perms.defaultMode === "string" ? perms.defaultMode : undefined,
       bashTimeoutMs:
-        typeof env["BASH_DEFAULT_TIMEOUT_MS"] === "string"
-          ? env["BASH_DEFAULT_TIMEOUT_MS"]
-          : undefined,
+        typeof env.BASH_DEFAULT_TIMEOUT_MS === "string" ? env.BASH_DEFAULT_TIMEOUT_MS : undefined,
       autocompactPct:
-        typeof env["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"] === "string"
-          ? env["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"]
+        typeof env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE === "string"
+          ? env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE
           : undefined,
     };
   } catch {
@@ -149,8 +147,8 @@ export function writeClaudeCodeLocalSettings(
     settings.env = {};
   }
   const env = settings.env as Record<string, string>;
-  env["BASH_DEFAULT_TIMEOUT_MS"] = options.bashTimeoutMs;
-  env["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"] = options.autocompactPct;
+  env.BASH_DEFAULT_TIMEOUT_MS = options.bashTimeoutMs;
+  env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = options.autocompactPct;
 
   if (JSON.stringify(settings) === before) {
     return { result: "skipped", filePath: settingsPath };

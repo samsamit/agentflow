@@ -314,12 +314,14 @@ export async function init(options: { default?: boolean } = {}) {
               output.info("");
             }
 
-            const { result: localResult, filePath: localFilePath } =
-              writeClaudeCodeLocalSettings(currentDir, {
+            const { result: localResult, filePath: localFilePath } = writeClaudeCodeLocalSettings(
+              currentDir,
+              {
                 defaultMode,
                 bashTimeoutMs,
                 autocompactPct,
-              });
+              },
+            );
             outputForResult(localResult, path.relative(currentDir, localFilePath));
           }
 
