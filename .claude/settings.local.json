@@ -27,7 +27,10 @@
       "WebFetch(domain:www.schemastore.org)",
       "Bash(figlet -f slant \"agentflow\")",
       "Bash(figlet \"agentflow\")",
-      "WebFetch(domain:gist.github.com)"
+      "WebFetch(domain:gist.github.com)",
+      "Bash(mkdir -p C:/Users/samut/Documents/PROJECTS/agent-chain-flow/.claude/skills/release)",
+      "Bash(mv C:/Users/samut/.claude/skills/release/SKILL.md C:/Users/samut/Documents/PROJECTS/agent-chain-flow/.claude/skills/release/SKILL.md)",
+      "Bash(rmdir C:/Users/samut/.claude/skills/release)"
     ]
   }
 }
