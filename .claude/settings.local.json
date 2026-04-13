@@ -20,7 +20,8 @@
       "Bash(agentflow:*)",
       "Bash(npm test:*)",
       "Bash(node dist/index.mjs validate --flow plan)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx biome:*)"
     ]
   }
 }

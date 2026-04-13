@@ -116,6 +116,34 @@ export function copyFile(sourcePath: string, destPath: string): void {
 }
 
 /**
+ * Returns all file paths relative to baseDir, recursively.
+ * Top-level entries whose names appear in `exclude` are skipped entirely.
+ * Throws if baseDir does not exist.
+ */
+export function listFilesRecursive(baseDir: string, exclude: string[] = []): string[] {
+  if (!fs.existsSync(baseDir)) {
+    throw new Error(`Directory not found: ${baseDir}`);
+  }
+
+  function walk(dir: string, relBase: string): string[] {
+    const results: string[] = [];
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (relBase === "" && exclude.includes(entry.name)) continue;
+      const relPath = relBase === "" ? entry.name : `${relBase}/${entry.name}`;
+      if (entry.isDirectory()) {
+        results.push(...walk(path.join(dir, entry.name), relPath));
+      } else {
+        results.push(relPath);
+      }
+    }
+    return results;
+  }
+
+  return walk(baseDir, "");
+}
+
+/**
  * Recursively copies all files from sourceDir into destDir.
  * Creates destDir if it does not exist.
  * Entries whose names appear in `exclude` are skipped (top-level only).

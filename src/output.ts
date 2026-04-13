@@ -81,6 +81,16 @@ export function initWarning(label: string): void {
   write(`  ${styled("⚠", c.yellow, c.bold)}  ${styled(label, c.yellow)}`);
 }
 
+export function initDescription(text: string): void {
+  write(`  ${styled(text, c.dim, c.gray)}`);
+}
+
+export function initDeclined(label: string): void {
+  write(
+    `  ${styled("↩", c.yellow)}  ${styled(label, c.dim, c.gray)}  ${styled("(kept existing)", c.dim, c.gray)}`,
+  );
+}
+
 export function initSuccess(): void {
   write("");
   write(styled("  ────────────────────────────────────────────────", c.gray));

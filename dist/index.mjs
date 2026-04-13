@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { parse, stringify } from "yaml";
 import { z } from "zod";
 import { fileURLToPath } from "node:url";
-import { checkbox, select } from "@inquirer/prompts";
+import { checkbox, confirm, select } from "@inquirer/prompts";
 import * as os from "node:os";
 //#region src/constants.ts
 const DEFAULT_ROOT_FOLDER_NAME = "agentFlow";
@@ -82,22 +82,35 @@ function listDirs(dirPath) {
 	return fs.readdirSync(dirPath, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
 }
 /**
-* Recursively copies all files from sourceDir into destDir.
-* Creates destDir if it does not exist.
-* Entries whose names appear in `exclude` are skipped (top-level only).
-* Throws if sourceDir does not exist.
+* Copies a file from sourcePath to destPath.
+* Creates parent directories at destPath if needed.
+* Throws if the source file does not exist or copying fails.
 */
-function copyDirRecursive(sourceDir, destDir, exclude = []) {
-	if (!fs.existsSync(sourceDir)) throw new Error(`Source directory not found: ${sourceDir}`);
+function copyFile(sourcePath, destPath) {
+	if (!fs.existsSync(sourcePath)) throw new Error(`Source file not found: ${sourcePath}`);
+	const destDir = path.dirname(destPath);
 	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-	const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
-	for (const entry of entries) {
-		if (exclude.includes(entry.name)) continue;
-		const srcPath = path.join(sourceDir, entry.name);
-		const dstPath = path.join(destDir, entry.name);
-		if (entry.isDirectory()) copyDirRecursive(srcPath, dstPath);
-		else fs.copyFileSync(srcPath, dstPath);
+	fs.copyFileSync(sourcePath, destPath);
+}
+/**
+* Returns all file paths relative to baseDir, recursively.
+* Top-level entries whose names appear in `exclude` are skipped entirely.
+* Throws if baseDir does not exist.
+*/
+function listFilesRecursive(baseDir, exclude = []) {
+	if (!fs.existsSync(baseDir)) throw new Error(`Directory not found: ${baseDir}`);
+	function walk(dir, relBase) {
+		const results = [];
+		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		for (const entry of entries) {
+			if (relBase === "" && exclude.includes(entry.name)) continue;
+			const relPath = relBase === "" ? entry.name : `${relBase}/${entry.name}`;
+			if (entry.isDirectory()) results.push(...walk(path.join(dir, entry.name), relPath));
+			else results.push(relPath);
+		}
+		return results;
 	}
+	return walk(baseDir, "");
 }
 //#endregion
 //#region src/flow/loader.ts
@@ -387,6 +400,12 @@ function initSkipped(label) {
 }
 function initWarning(label) {
 	write(`  ${styled("⚠", c.yellow, c.bold)}  ${styled(label, c.yellow)}`);
+}
+function initDescription(text) {
+	write(`  ${styled(text, c.dim, c.gray)}`);
+}
+function initDeclined(label) {
+	write(`  ${styled("↩", c.yellow)}  ${styled(label, c.dim, c.gray)}  ${styled("(kept existing)", c.dim, c.gray)}`);
 }
 function initSuccess() {
 	write("");
@@ -929,7 +948,7 @@ const AGENTFLOW_PERMISSIONS = ["Bash(npx agentflow:*)", "Bash(agentflow:*)"];
 /**
 * Merges agentflow Bash permission rules into ~/.claude/settings.json.
 * Creates the file if it doesn't exist. Skips rules already present.
-* Returns the absolute path of the settings file written.
+* Returns the write result and absolute path.
 */
 function writeClaudeCodePermissions() {
 	const settingsPath = path.join(os.homedir(), ".claude", "settings.json");
@@ -943,24 +962,24 @@ function writeClaudeCodePermissions() {
 	const permissions = settings.permissions;
 	if (!Array.isArray(permissions.allow)) permissions.allow = [];
 	const allow = permissions.allow;
-	for (const rule of AGENTFLOW_PERMISSIONS) if (!allow.includes(rule)) allow.push(rule);
+	const missing = AGENTFLOW_PERMISSIONS.filter((rule) => !allow.includes(rule));
+	if (missing.length === 0) return {
+		result: "skipped",
+		filePath: settingsPath
+	};
+	for (const rule of missing) allow.push(rule);
 	const dir = path.dirname(settingsPath);
 	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-	fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
-	return settingsPath;
+	fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+	return {
+		result: "written",
+		filePath: settingsPath
+	};
 }
 //#endregion
 //#region src/ide/jetbrains.ts
-/**
-* Writes .idea/jsonSchemas.xml with a schema mapping for agentflow flow configs.
-* Creates the .idea directory if it does not exist.
-* Returns the absolute path to the XML file.
-*/
-function writeJetBrainsSchema(projectRoot, schemaRelativePath) {
-	const ideaDir = path.join(projectRoot, ".idea");
-	const xmlPath = path.join(ideaDir, "jsonSchemas.xml");
-	if (!fs.existsSync(ideaDir)) fs.mkdirSync(ideaDir, { recursive: true });
-	const xml = `<?xml version="1.0" encoding="UTF-8"?>
+function buildXml(schemaUrl) {
+	return `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="JsonSchemaMappingsProjectConfiguration">
     <state>
@@ -969,7 +988,7 @@ function writeJetBrainsSchema(projectRoot, schemaRelativePath) {
           <value>
             <SchemaInfo>
               <option name="name" value="agentflow-flow" />
-              <option name="relativePathToSchema" value="${schemaRelativePath.replace(/\\/g, "/")}" />
+              <option name="relativePathToSchema" value="${schemaUrl.replace(/\\/g, "/")}" />
               <option name="patterns">
                 <list>
                   <Item value="agentFlow/flows/*/.agentflow.yaml" />
@@ -983,17 +1002,45 @@ function writeJetBrainsSchema(projectRoot, schemaRelativePath) {
   </component>
 </project>
 `;
-	fs.writeFileSync(xmlPath, xml, "utf8");
-	return xmlPath;
+}
+/**
+* Writes .idea/jsonSchemas.xml with a schema mapping for agentflow flow configs.
+* - If file does not exist: writes silently.
+* - If file exists and content is identical: skips silently.
+* - If file exists and content differs: prompts via confirmFn before writing.
+* Creates the .idea directory if it does not exist.
+*/
+async function writeJetBrainsSchema(projectRoot, schemaUrl, confirmFn) {
+	const ideaDir = path.join(projectRoot, ".idea");
+	const xmlPath = path.join(ideaDir, "jsonSchemas.xml");
+	if (!fs.existsSync(ideaDir)) fs.mkdirSync(ideaDir, { recursive: true });
+	const newContent = buildXml(schemaUrl);
+	if (fs.existsSync(xmlPath)) {
+		if (fs.readFileSync(xmlPath, "utf8") === newContent) return {
+			result: "skipped",
+			filePath: xmlPath
+		};
+		if (!await confirmFn("Replace .idea/jsonSchemas.xml with updated schema config?")) return {
+			result: "declined",
+			filePath: xmlPath
+		};
+	}
+	fs.writeFileSync(xmlPath, newContent, "utf8");
+	return {
+		result: "written",
+		filePath: xmlPath
+	};
 }
 //#endregion
 //#region src/ide/vscode.ts
 /**
 * Merges a yaml.schemas entry into .vscode/settings.json for the VS Code YAML extension.
-* Creates the file (and parent directory) if it does not exist.
-* Returns the absolute path to the settings file.
+* - If the entry already exists with the same value: skips silently.
+* - If the entry is absent: writes silently.
+* - If the entry exists with a different value: prompts via confirmFn before writing.
+* Creates the file and directory if they do not exist.
 */
-function writeVsCodeSettings(projectRoot, schemaRelativePath) {
+async function writeVsCodeSettings(projectRoot, schemaUrl, confirmFn) {
 	const settingsPath = path.join(projectRoot, ".vscode", "settings.json");
 	const settingsDir = path.dirname(settingsPath);
 	if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
@@ -1003,25 +1050,43 @@ function writeVsCodeSettings(projectRoot, schemaRelativePath) {
 	} catch {
 		existing = {};
 	}
-	const yamlSchemas = { [schemaRelativePath]: ["agentFlow/flows/*/.agentflow.yaml"] };
+	const existingSchemas = existing["yaml.schemas"];
+	const existingEntry = existingSchemas?.[schemaUrl];
+	const newEntry = ["agentFlow/flows/*/.agentflow.yaml"];
+	if (existingEntry !== void 0) {
+		if (JSON.stringify(existingEntry) === JSON.stringify(newEntry)) return {
+			result: "skipped",
+			filePath: settingsPath
+		};
+		if (!await confirmFn("Update yaml.schemas entry in .vscode/settings.json?")) return {
+			result: "declined",
+			filePath: settingsPath
+		};
+	}
 	const updated = {
 		...existing,
 		"yaml.schemas": {
-			...existing["yaml.schemas"],
-			...yamlSchemas
+			...existingSchemas,
+			[schemaUrl]: newEntry
 		}
 	};
 	fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 2), "utf8");
-	return settingsPath;
+	return {
+		result: "written",
+		filePath: settingsPath
+	};
 }
 //#endregion
 //#region src/ide/zed.ts
+const ZED_PATTERN = "**/agentFlow/flows/*/.agentflow.yaml";
 /**
 * Merges a file_associations entry into .zed/settings.json for the Zed editor.
-* Creates the file (and parent directory) if it does not exist.
-* Returns the absolute path to the settings file.
+* - If the entry already exists with the same value: skips silently.
+* - If the entry is absent: writes silently.
+* - If the entry exists with a different value: prompts via confirmFn before writing.
+* Creates the file and directory if they do not exist.
 */
-function writeZedSettings(projectRoot, schemaRelativePath) {
+async function writeZedSettings(projectRoot, schemaUrl, confirmFn) {
 	const settingsPath = path.join(projectRoot, ".zed", "settings.json");
 	const settingsDir = path.dirname(settingsPath);
 	if (!fs.existsSync(settingsDir)) fs.mkdirSync(settingsDir, { recursive: true });
@@ -1031,18 +1096,31 @@ function writeZedSettings(projectRoot, schemaRelativePath) {
 	} catch {
 		existing = {};
 	}
-	const pattern = "**/agentFlow/flows/*/.agentflow.yaml";
-	const schemaPathForZed = schemaRelativePath.replace(/\\/g, "/");
-	const fileAssociations = { [pattern]: schemaPathForZed };
+	const existingAssociations = existing.file_associations;
+	const existingEntry = existingAssociations?.[ZED_PATTERN];
+	const schemaUrlForZed = schemaUrl.replace(/\\/g, "/");
+	if (existingEntry !== void 0) {
+		if (existingEntry === schemaUrlForZed) return {
+			result: "skipped",
+			filePath: settingsPath
+		};
+		if (!await confirmFn("Update file_associations entry in .zed/settings.json?")) return {
+			result: "declined",
+			filePath: settingsPath
+		};
+	}
 	const updated = {
 		...existing,
 		file_associations: {
-			...existing.file_associations,
-			...fileAssociations
+			...existingAssociations,
+			[ZED_PATTERN]: schemaUrlForZed
 		}
 	};
 	fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 2), "utf8");
-	return settingsPath;
+	return {
+		result: "written",
+		filePath: settingsPath
+	};
 }
 //#endregion
 //#region src/templates/config.yaml
@@ -1064,14 +1142,32 @@ function getBundledSkillFile(skillName) {
 	for (const candidate of candidates) if (fs.existsSync(candidate)) return candidate;
 	return candidates[candidates.length - 1] ?? "";
 }
-function copySkill(skillName, currentDir, toolRoot) {
+function outputForResult(result, label) {
+	if (result === "written") initCreated(label);
+	else if (result === "skipped") initSkipped(label);
+	else initDeclined(label);
+}
+async function copyFileWithConfirm(srcPath, destPath, label, confirmFn) {
+	if (fileExists(destPath)) {
+		if (readFile(srcPath) === readFile(destPath)) {
+			initSkipped(label);
+			return;
+		}
+		if (!await confirmFn(`Overwrite ${label}?`)) {
+			initDeclined(label);
+			return;
+		}
+	}
+	copyFile(srcPath, destPath);
+	initCreated(label);
+}
+async function copySkill(skillName, currentDir, toolRoot, confirmFn) {
 	const bundledSkillFile = getBundledSkillFile(skillName);
 	if (fileExists(bundledSkillFile)) {
 		const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, skillName);
 		const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
 		createFolder(skillDestDir);
-		fs.copyFileSync(bundledSkillFile, skillDestPath);
-		initCreated(path.relative(currentDir, skillDestPath));
+		await copyFileWithConfirm(bundledSkillFile, skillDestPath, path.relative(currentDir, skillDestPath), confirmFn);
 	} else initWarning(`Bundled skill file for "${skillName}" not found — skipping`);
 }
 async function init(options = {}) {
@@ -1079,6 +1175,7 @@ async function init(options = {}) {
 		const currentDir = process.cwd();
 		const mainFolderPath = path.join(currentDir, DEFAULT_ROOT_FOLDER_NAME);
 		const configFilePath = path.join(mainFolderPath, CONFIG_FILE_NAME);
+		const confirmFn = options.default === true ? async () => true : async (message) => confirm({ message });
 		banner();
 		initSection("Setting up project structure");
 		createFolder(mainFolderPath);
@@ -1095,6 +1192,7 @@ async function init(options = {}) {
 			const bundledFlowNames = listDirs(bundledFlowsDir);
 			if (bundledFlowNames.length > 0) {
 				initSection("Bundled flows");
+				initDescription("Select which workflow templates to copy into your project.");
 				selectedFlows = await checkbox({
 					message: "Select flows to copy into your project:",
 					choices: bundledFlowNames.map((name) => ({
@@ -1104,8 +1202,10 @@ async function init(options = {}) {
 					}))
 				});
 				if (selectedFlows.length > 0) for (const flowName of selectedFlows) {
-					copyDirRecursive(path.join(bundledFlowsDir, flowName), path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName), [AGENTS_FOLDER_NAME]);
-					initCreated(`flows/${flowName}/`);
+					const srcFlowDir = path.join(bundledFlowsDir, flowName);
+					const destFlowDir = path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName);
+					const relFiles = listFilesRecursive(srcFlowDir, [AGENTS_FOLDER_NAME]);
+					for (const relPath of relFiles) await copyFileWithConfirm(path.join(srcFlowDir, relPath), path.join(destFlowDir, relPath), path.join(DEFAULT_ROOT_FOLDER_NAME, FLOWS_FOLDER_NAME, flowName, relPath), confirmFn);
 				}
 				else initSkipped("No flows selected");
 			}
@@ -1113,6 +1213,7 @@ async function init(options = {}) {
 		if (options.default) initSkipped("IDE configuration skipped");
 		else {
 			initSection("IDE integration");
+			initDescription("Adds YAML schema validation for flow config files in your editor.");
 			const ideChoice = await select({
 				message: "Select your IDE for YAML schema support:",
 				choices: [
@@ -1135,19 +1236,20 @@ async function init(options = {}) {
 				]
 			});
 			if (ideChoice === "vscode") {
-				const settingsPath = writeVsCodeSettings(currentDir, SCHEMA_CDN_URL);
-				initCreated(path.relative(currentDir, settingsPath));
+				const { result, filePath } = await writeVsCodeSettings(currentDir, SCHEMA_CDN_URL, confirmFn);
+				outputForResult(result, path.relative(currentDir, filePath));
 			} else if (ideChoice === "jetbrains") {
-				const xmlPath = writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL);
-				initCreated(path.relative(currentDir, xmlPath));
+				const { result, filePath } = await writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL, confirmFn);
+				outputForResult(result, path.relative(currentDir, filePath));
 			} else if (ideChoice === "zed") {
-				const settingsPath = writeZedSettings(currentDir, SCHEMA_CDN_URL);
-				initCreated(path.relative(currentDir, settingsPath));
+				const { result, filePath } = await writeZedSettings(currentDir, SCHEMA_CDN_URL, confirmFn);
+				outputForResult(result, path.relative(currentDir, filePath));
 			} else initSkipped("IDE configuration skipped");
 		}
 		if (options.default) initSkipped("AI tool integration skipped");
 		else {
 			initSection("AI tool integration");
+			initDescription("Installs the agentflow skill and agent definitions for your AI tool.");
 			const aiToolChoice = await select({
 				message: "Select your AI tool to inject the agentflow skill:",
 				choices: [
@@ -1172,9 +1274,12 @@ async function init(options = {}) {
 			if (aiToolChoice !== "none") {
 				const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
 				if (toolRoot !== void 0) {
-					copySkill(SKILL_NAME, currentDir, toolRoot);
-					copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot);
-					if (aiToolChoice === "claude-code") initCreated(`${writeClaudeCodePermissions()} (permissions)`);
+					await copySkill(SKILL_NAME, currentDir, toolRoot, confirmFn);
+					await copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot, confirmFn);
+					if (aiToolChoice === "claude-code") {
+						const { result, filePath } = writeClaudeCodePermissions();
+						outputForResult(result, `${filePath} (permissions)`);
+					}
 					if (selectedFlows.length > 0 && bundledFlowsDir !== "") {
 						const agentsDestDir = path.join(currentDir, toolRoot, AGENTS_FOLDER_NAME);
 						for (const flowName of selectedFlows) {
@@ -1184,8 +1289,7 @@ async function init(options = {}) {
 								for (const agentFile of fs.readdirSync(agentsSrcDir)) {
 									const agentSrc = path.join(agentsSrcDir, agentFile);
 									const agentDest = path.join(agentsDestDir, agentFile);
-									fs.copyFileSync(agentSrc, agentDest);
-									initCreated(path.relative(currentDir, agentDest));
+									await copyFileWithConfirm(agentSrc, agentDest, path.relative(currentDir, agentDest), confirmFn);
 								}
 							}
 						}

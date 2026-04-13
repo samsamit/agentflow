@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkbox, select } from "@inquirer/prompts";
+import { checkbox, confirm, select } from "@inquirer/prompts";
 import {
   AGENTS_FOLDER_NAME,
   AI_TOOL_ROOTS,
@@ -21,11 +21,14 @@ import { writeVsCodeSettings } from "../ide/vscode.js";
 import { writeZedSettings } from "../ide/zed.js";
 import * as output from "../output.js";
 import configTemplate from "../templates/config.yaml";
+import type { ConfirmFn, WriteResult } from "../types.js";
 import {
-  copyDirRecursive,
+  copyFile,
   createFolder,
   fileExists,
   listDirs,
+  listFilesRecursive,
+  readFile,
   writeFile,
 } from "../utils/fileIo.js";
 
@@ -66,14 +69,48 @@ function getBundledSkillFile(skillName: string): string {
   return candidates[candidates.length - 1] ?? "";
 }
 
-function copySkill(skillName: string, currentDir: string, toolRoot: string): void {
+function outputForResult(result: WriteResult, label: string): void {
+  if (result === "written") output.initCreated(label);
+  else if (result === "skipped") output.initSkipped(label);
+  else output.initDeclined(label);
+}
+
+async function copyFileWithConfirm(
+  srcPath: string,
+  destPath: string,
+  label: string,
+  confirmFn: ConfirmFn,
+): Promise<void> {
+  if (fileExists(destPath)) {
+    const srcContent = readFile(srcPath);
+    const destContent = readFile(destPath);
+    if (srcContent === destContent) {
+      output.initSkipped(label);
+      return;
+    }
+    const ok = await confirmFn(`Overwrite ${label}?`);
+    if (!ok) {
+      output.initDeclined(label);
+      return;
+    }
+  }
+  copyFile(srcPath, destPath);
+  output.initCreated(label);
+}
+
+async function copySkill(
+  skillName: string,
+  currentDir: string,
+  toolRoot: string,
+  confirmFn: ConfirmFn,
+): Promise<void> {
   const bundledSkillFile = getBundledSkillFile(skillName);
   if (fileExists(bundledSkillFile)) {
     const skillDestDir = path.join(currentDir, toolRoot, SKILLS_FOLDER_NAME, skillName);
     const skillDestPath = path.join(skillDestDir, SKILL_FILE_NAME);
     createFolder(skillDestDir);
-    fs.copyFileSync(bundledSkillFile, skillDestPath);
-    output.initCreated(path.relative(currentDir, skillDestPath));
+    const label = path.relative(currentDir, skillDestPath);
+    await copyFileWithConfirm(bundledSkillFile, skillDestPath, label, confirmFn);
   } else {
     output.initWarning(`Bundled skill file for "${skillName}" not found — skipping`);
   }
@@ -84,6 +121,11 @@ export async function init(options: { default?: boolean } = {}) {
     const currentDir = process.cwd();
     const mainFolderPath = path.join(currentDir, DEFAULT_ROOT_FOLDER_NAME);
     const configFilePath = path.join(mainFolderPath, CONFIG_FILE_NAME);
+
+    const autoApprove = options.default === true;
+    const confirmFn: ConfirmFn = autoApprove
+      ? async () => true
+      : async (message) => confirm({ message });
 
     output.banner();
 
@@ -108,6 +150,7 @@ export async function init(options: { default?: boolean } = {}) {
       const bundledFlowNames = listDirs(bundledFlowsDir);
       if (bundledFlowNames.length > 0) {
         output.initSection("Bundled flows");
+        output.initDescription("Select which workflow templates to copy into your project.");
         selectedFlows = await checkbox<string>({
           message: "Select flows to copy into your project:",
           choices: bundledFlowNames.map((name) => ({ name, value: name, checked: true })),
@@ -115,10 +158,20 @@ export async function init(options: { default?: boolean } = {}) {
 
         if (selectedFlows.length > 0) {
           for (const flowName of selectedFlows) {
-            const src = path.join(bundledFlowsDir, flowName);
-            const dest = path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName);
-            copyDirRecursive(src, dest, [AGENTS_FOLDER_NAME]);
-            output.initCreated(`flows/${flowName}/`);
+            const srcFlowDir = path.join(bundledFlowsDir, flowName);
+            const destFlowDir = path.join(mainFolderPath, FLOWS_FOLDER_NAME, flowName);
+            const relFiles = listFilesRecursive(srcFlowDir, [AGENTS_FOLDER_NAME]);
+            for (const relPath of relFiles) {
+              const srcFile = path.join(srcFlowDir, relPath);
+              const destFile = path.join(destFlowDir, relPath);
+              const label = path.join(
+                DEFAULT_ROOT_FOLDER_NAME,
+                FLOWS_FOLDER_NAME,
+                flowName,
+                relPath,
+              );
+              await copyFileWithConfirm(srcFile, destFile, label, confirmFn);
+            }
           }
         } else {
           output.initSkipped("No flows selected");
@@ -131,6 +184,7 @@ export async function init(options: { default?: boolean } = {}) {
       output.initSkipped("IDE configuration skipped");
     } else {
       output.initSection("IDE integration");
+      output.initDescription("Adds YAML schema validation for flow config files in your editor.");
 
       const ideChoice = await select<string>({
         message: "Select your IDE for YAML schema support:",
@@ -143,14 +197,22 @@ export async function init(options: { default?: boolean } = {}) {
       });
 
       if (ideChoice === "vscode") {
-        const settingsPath = writeVsCodeSettings(currentDir, SCHEMA_CDN_URL);
-        output.initCreated(path.relative(currentDir, settingsPath));
+        const { result, filePath } = await writeVsCodeSettings(
+          currentDir,
+          SCHEMA_CDN_URL,
+          confirmFn,
+        );
+        outputForResult(result, path.relative(currentDir, filePath));
       } else if (ideChoice === "jetbrains") {
-        const xmlPath = writeJetBrainsSchema(currentDir, SCHEMA_CDN_URL);
-        output.initCreated(path.relative(currentDir, xmlPath));
+        const { result, filePath } = await writeJetBrainsSchema(
+          currentDir,
+          SCHEMA_CDN_URL,
+          confirmFn,
+        );
+        outputForResult(result, path.relative(currentDir, filePath));
       } else if (ideChoice === "zed") {
-        const settingsPath = writeZedSettings(currentDir, SCHEMA_CDN_URL);
-        output.initCreated(path.relative(currentDir, settingsPath));
+        const { result, filePath } = await writeZedSettings(currentDir, SCHEMA_CDN_URL, confirmFn);
+        outputForResult(result, path.relative(currentDir, filePath));
       } else {
         output.initSkipped("IDE configuration skipped");
       }
@@ -161,6 +223,10 @@ export async function init(options: { default?: boolean } = {}) {
       output.initSkipped("AI tool integration skipped");
     } else {
       output.initSection("AI tool integration");
+      output.initDescription(
+        "Installs the agentflow skill and agent definitions for your AI tool.",
+      );
+
       const aiToolChoice = await select<string>({
         message: "Select your AI tool to inject the agentflow skill:",
         choices: [
@@ -175,13 +241,13 @@ export async function init(options: { default?: boolean } = {}) {
         const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
         if (toolRoot !== undefined) {
           // Skill injection
-          copySkill(SKILL_NAME, currentDir, toolRoot);
-          copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot);
+          await copySkill(SKILL_NAME, currentDir, toolRoot, confirmFn);
+          await copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot, confirmFn);
 
           // Permissions — add agentflow Bash rules to ~/.claude/settings.json (Claude Code only)
           if (aiToolChoice === "claude-code") {
-            const claudeSettingsPath = writeClaudeCodePermissions();
-            output.initCreated(`${claudeSettingsPath} (permissions)`);
+            const { result, filePath } = writeClaudeCodePermissions();
+            outputForResult(result, `${filePath} (permissions)`);
           }
 
           // Agent injection — install agent files bundled with each selected flow
@@ -194,8 +260,8 @@ export async function init(options: { default?: boolean } = {}) {
                 for (const agentFile of fs.readdirSync(agentsSrcDir)) {
                   const agentSrc = path.join(agentsSrcDir, agentFile);
                   const agentDest = path.join(agentsDestDir, agentFile);
-                  fs.copyFileSync(agentSrc, agentDest);
-                  output.initCreated(path.relative(currentDir, agentDest));
+                  const label = path.relative(currentDir, agentDest);
+                  await copyFileWithConfirm(agentSrc, agentDest, label, confirmFn);
                 }
               }
             }
