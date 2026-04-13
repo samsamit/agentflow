@@ -57,13 +57,11 @@ Write structured release notes in this format:
 
 ### Bug Fixes
 - ...
-
-### Internal
-- ...
 ```
 
 Guidelines:
-- Group by type: `feat`/`add` → New Features, `fix` → Bug Fixes, `chore`/`refactor`/`docs`/`build`/`ci` → Internal
+- Group by type: `feat`/`add` → New Features, `fix` → Bug Fixes
+- Omit internal changes (`chore`/`refactor`/`docs`/`build`/`ci`) — these are not included in release notes
 - Rewrite each item as a clear human-readable sentence — not a raw commit message
 - Omit sections with no items
 - Skip merge commits and version bump commits
