@@ -26,37 +26,37 @@ You are reviewing two documents:
 
 ## Output format
 
-Be maximally terse. Each finding is **one line** — issue and fix on the same line, no elaboration:
+Write `spec-review.md` using this structure:
+
+**If any step fails:**
 
 ```
-**[LOCATION]** Issue. Fix: Specific change.
-```
+# Spec Review
+Gate: FAIL
 
-No multi-sentence explanations. No quoting from the spec. State only what is wrong and what to change.
+## <step-name> — issues found
 
-If after exhaustive review you find no substantive flaws — only nitpicks about wording — state that explicitly with the phrase: "Spec passes the gate."
+- **[LOCATION]** Issue. Fix: Specific change.
+- **[LOCATION]** Issue. Fix: Specific change.
 
-Write your findings to `spec-review.md`.
-
-## Architect Summary
-
-After your findings, append a compact summary (no prose — bullets only):
+Revision directive: Fix the issues listed above. Leave all other sections of the document unchanged.
 
 ```
-## Architect Summary
 
-**Blocking:** [bullet per blocker, or "None"]
-**Attention:** [bullet per non-blocker, or "None"]
-**Gate:** PASS / FAIL
+Only include a section for steps that **fail**. If a step passes, omit it entirely — do not write "X passed" or any other passing content. The output should contain only what the revision agent needs to fix.
+
+**If all steps pass:**
+
+```
+# Spec Review
+Gate: PASS
+
 ```
 
-## Validation instructions
-
-The `validates` list in the flow config names the upstream steps whose output you are gatekeeping. For each named step:
-- **Pass**: The spec is complete, internally consistent, and has survived adversarial review
-- **Fail**: The spec has substantive flaws that must be addressed before tests can be written
+Each finding is one line — issue and fix on the same line, no elaboration. No multi-sentence explanations. No quoting from the spec. State only what is wrong and what to change.
 
 ## Rules
 
 - **Be specific.** Cite exact sections and phrases. Propose fixes.
 - **PASS means you tried and failed to find real issues.** Do not invent problems to appear thorough.
+- **Omit passing steps entirely.** A revision agent reading this document should see only what needs fixing.

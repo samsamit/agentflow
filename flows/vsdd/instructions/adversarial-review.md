@@ -46,41 +46,39 @@ Sometimes writing the code reveals the spec was incomplete. Look for:
 - Behavior that the spec implies but does not state
 - Purity boundary violations that crept through refactoring
 
-## Revision Targets
-For each validates target, state whether it needs revision:
-- **spec**: REVISE | OK — <reason>
-- **verification-plan**: REVISE | OK — <reason>
-- **tests**: REVISE | OK — <reason>
-- **implement**: REVISE | OK — <reason>
-Only recommend REVISE for targets where you found legitimate issues at that level.
+## Output format
 
-## Output Format
+Write `adversarial-review.md` using this structure:
 
-Be maximally terse. Write `adversarial-review.md`:
+**If any step fails:**
 
 ```
 # Adversarial Review
+Verdict: FAIL
 
-## Verdict: PASS | FAIL
-
-## Issues
-(Only if FAIL — in severity order. Each issue is ONE line.)
+## <step-name> — issues found
 
 - [CRITICAL|HIGH|MEDIUM|LOW] [Dimension] file:line — Issue. Fix: change.
+- [CRITICAL|HIGH|MEDIUM|LOW] [Dimension] file:line — Issue. Fix: change.
 
-## Summary
-Counts by severity. If PASS: no legitimate issues found.
+Revision directive: Fix the issues listed above. Do not touch unaffected files or modules.
 ```
 
-No multi-sentence explanations. No quoting code. State only what is wrong, where, and what to change.
+Only include a section for steps that **fail**. If a step passes all five dimensions, omit it entirely — do not write "X passed" or any other passing content. The output should contain only what the revision agent needs to fix.
 
-## Validation instructions
+**If all steps pass:**
 
-The `validates` list in the flow config names the upstream steps whose output you are gatekeeping. For each named step, decide:
-- **Pass**: The step's output is complete, correct, and has survived adversarial review
-- **Fail**: The step has concrete, specific flaws that must be addressed
+```
+# Adversarial Review
+Verdict: PASS
+
+agentflow complete --step adversarial-review --task <task>
+```
+
+Each issue is one line. No multi-sentence explanations. No quoting code. State only what is wrong, where, and what to change.
 
 ## Rules
 
-- **Be specific.** Cite exact sections and phrases. Propose fixes.
+- **Be specific.** Cite exact file paths. Propose concrete fixes.
 - **PASS means you tried and failed to find real issues.** Do not invent problems to appear thorough.
+- **Omit passing steps entirely.** A revision agent reading this document should see only what needs fixing.
