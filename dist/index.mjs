@@ -19,6 +19,7 @@ const SCHEMA_CDN_URL = `https://cdn.jsdelivr.net/npm/@samsamit/agentflow@latest/
 const SKILLS_FOLDER_NAME = "skills";
 const SKILL_NAME = "agentflow";
 const OPTIMIZE_SKILL_NAME = "agentflow-optimize";
+const FLOW_SKILL_NAME = "agentflow-flow";
 const SKILL_FILE_NAME = "SKILL.md";
 const AGENTS_FOLDER_NAME = "agents";
 const AI_TOOL_ROOTS = {
@@ -486,10 +487,13 @@ function flowPaused(stepName, taskName, generatedFile) {
 	write(`Once the user has reviewed and approved, run:`);
 	write(`  agentflow next --resume`);
 }
-function stepComplete(stepName, unblocked) {
+function stepComplete(stepName, unblocked, pauseAfter = false) {
 	write(`Step complete: ${stepName}`);
 	if (unblocked.length > 0) write(`Unblocked: ${unblocked.join(", ")}`);
-	write("Run: agentflow next");
+	if (pauseAfter) {
+		write("STOP: This step requires user review before continuing.");
+		write("Do not run the next step. Wait for the user to approve, then run: agentflow next --resume");
+	} else write("Run: agentflow next");
 }
 function stepRevised(stepName, revisionCount, maxRevisions, cascadedReady, cascadedBlocked) {
 	write(`Step marked for revision: ${stepName} (revision ${revisionCount}/${maxRevisions})`);
@@ -684,7 +688,8 @@ function completeCommand(args) {
 			state: "ready"
 		};
 	}
-	writeTaskState(taskDir, flow.steps.find((s) => s.name === stepName)?.pauseAfter === true ? {
+	const pauseAfter = flow.steps.find((s) => s.name === stepName)?.pauseAfter === true;
+	writeTaskState(taskDir, pauseAfter ? {
 		...taskState,
 		steps: updatedSteps,
 		pausedAfterStep: stepName
@@ -692,7 +697,7 @@ function completeCommand(args) {
 		...taskState,
 		steps: updatedSteps
 	});
-	stepComplete(stepName, unblocked);
+	stepComplete(stepName, unblocked, pauseAfter);
 }
 /**
 * CLI command handler for `agentflow complete`.
@@ -1352,8 +1357,21 @@ async function init(options = {}) {
 			if (aiToolChoice !== "none") {
 				const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
 				if (toolRoot !== void 0) {
+					const optionalSkills = await checkbox({
+						message: "Select optional skills to install:",
+						choices: [{
+							name: `agentflow-optimize — Analyzes completed step artifacts and suggests instruction improvements, reducing revision cycles on future runs`,
+							value: OPTIMIZE_SKILL_NAME,
+							checked: true
+						}, {
+							name: `agentflow-flow — Conversational tool for creating and modifying flows; design new workflows or add steps through natural language`,
+							value: FLOW_SKILL_NAME,
+							checked: true
+						}]
+					});
 					await copySkill(SKILL_NAME, currentDir, toolRoot, confirmFn);
-					await copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot, confirmFn);
+					if (optionalSkills.includes("agentflow-optimize")) await copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot, confirmFn);
+					if (optionalSkills.includes("agentflow-flow")) await copySkill(FLOW_SKILL_NAME, currentDir, toolRoot, confirmFn);
 					if (aiToolChoice === "claude-code") {
 						const { result, filePath } = writeClaudeCodePermissions();
 						outputForResult(result, `${filePath} (permissions)`);

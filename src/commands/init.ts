@@ -7,6 +7,7 @@ import {
   AI_TOOL_ROOTS,
   CONFIG_FILE_NAME,
   DEFAULT_ROOT_FOLDER_NAME,
+  FLOW_SKILL_NAME,
   FLOWS_FOLDER_NAME,
   OPTIMIZE_SKILL_NAME,
   SCHEMA_CDN_URL,
@@ -254,9 +255,31 @@ export async function init(options: { default?: boolean } = {}) {
       if (aiToolChoice !== "none") {
         const toolRoot = AI_TOOL_ROOTS[aiToolChoice];
         if (toolRoot !== undefined) {
+          // Optional skill selection
+          const optionalSkills = await checkbox<string>({
+            message: "Select optional skills to install:",
+            choices: [
+              {
+                name: `agentflow-optimize — Analyzes completed step artifacts and suggests instruction improvements, reducing revision cycles on future runs`,
+                value: OPTIMIZE_SKILL_NAME,
+                checked: true,
+              },
+              {
+                name: `agentflow-flow — Conversational tool for creating and modifying flows; design new workflows or add steps through natural language`,
+                value: FLOW_SKILL_NAME,
+                checked: true,
+              },
+            ],
+          });
+
           // Skill injection
           await copySkill(SKILL_NAME, currentDir, toolRoot, confirmFn);
-          await copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot, confirmFn);
+          if (optionalSkills.includes(OPTIMIZE_SKILL_NAME)) {
+            await copySkill(OPTIMIZE_SKILL_NAME, currentDir, toolRoot, confirmFn);
+          }
+          if (optionalSkills.includes(FLOW_SKILL_NAME)) {
+            await copySkill(FLOW_SKILL_NAME, currentDir, toolRoot, confirmFn);
+          }
 
           // Permissions — add agentflow Bash rules to ~/.claude/settings.json (Claude Code only)
           if (aiToolChoice === "claude-code") {
