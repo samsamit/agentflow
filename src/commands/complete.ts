@@ -75,7 +75,7 @@ export function completeCommand(args: CompleteArgs): void {
     : { ...taskState, steps: updatedSteps };
   writeTaskState(taskDir, updatedTaskState);
 
-  output.stepComplete(stepName, unblocked);
+  output.stepComplete(stepName, unblocked, pauseAfter);
 }
 
 /**

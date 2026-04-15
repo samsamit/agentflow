@@ -256,12 +256,19 @@ export function flowPaused(stepName: string, taskName: string, generatedFile?: s
   write(`  agentflow next --resume`);
 }
 
-export function stepComplete(stepName: string, unblocked: string[]): void {
+export function stepComplete(stepName: string, unblocked: string[], pauseAfter = false): void {
   write(`Step complete: ${stepName}`);
   if (unblocked.length > 0) {
     write(`Unblocked: ${unblocked.join(", ")}`);
   }
-  write("Run: agentflow next");
+  if (pauseAfter) {
+    write("STOP: This step requires user review before continuing.");
+    write(
+      "Do not run the next step. Wait for the user to approve, then run: agentflow next --resume",
+    );
+  } else {
+    write("Run: agentflow next");
+  }
 }
 
 export function stepRevised(
