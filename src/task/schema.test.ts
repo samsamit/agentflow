@@ -60,6 +60,22 @@ describe("taskStateSchema round-trip", () => {
     }
   });
 
+  it("migrates legacy 'ready' state to 'open'", () => {
+    const legacy = {
+      active: true,
+      flow: "plan",
+      steps: {
+        research: { state: "ready" },
+        plan: { state: "blocked" },
+      },
+    };
+    const result = taskStateSchema.safeParse(legacy);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.steps["research"]?.state).toBe("open");
+    }
+  });
+
   it("rejects invalid state values", () => {
     const invalid = {
       active: true,
