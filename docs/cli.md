@@ -52,9 +52,9 @@ All three map the schema to `agentFlow/flows/*/.agentflow.yaml`.
 
 | AI tool | Root | Paths written |
 |---|---|---|
-| Claude Code | `.claude/` | `.claude/skills/agentflow/SKILL.md`, `.claude/skills/agentflow-optimize/SKILL.md`, `.claude/agents/<flow-agent-files>` |
-| Cursor | `.cursor/` | `.cursor/skills/agentflow/SKILL.md`, `.cursor/skills/agentflow-optimize/SKILL.md`, `.cursor/agents/<flow-agent-files>` |
-| Windsurf | `.windsurf/` | `.windsurf/skills/agentflow/SKILL.md`, `.windsurf/skills/agentflow-optimize/SKILL.md`, `.windsurf/agents/<flow-agent-files>` |
+| Claude Code | `.claude/` | `.claude/skills/agentflow/SKILL.md`, `.claude/skills/agentflow-optimize/SKILL.md`, `.claude/skills/agentflow-flow/SKILL.md`, `.claude/agents/<flow-agent-files>` |
+| Cursor | `.cursor/` | `.cursor/skills/agentflow/SKILL.md`, `.cursor/skills/agentflow-optimize/SKILL.md`, `.cursor/skills/agentflow-flow/SKILL.md`, `.cursor/agents/<flow-agent-files>` |
+| Windsurf | `.windsurf/` | `.windsurf/skills/agentflow/SKILL.md`, `.windsurf/skills/agentflow-optimize/SKILL.md`, `.windsurf/skills/agentflow-flow/SKILL.md`, `.windsurf/agents/<flow-agent-files>` |
 
 **Claude Code only** — two additional files are written:
 

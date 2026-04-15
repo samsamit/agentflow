@@ -300,10 +300,10 @@ export async function init(options: { default?: boolean } = {}) {
 
             if (!options.default) {
               output.initSettingDescription(
-                "defaultMode: How Claude handles permission requests during workflow steps.",
+                "defaultMode: How Claude handles permission requests during workflow steps. Claude Code defaults to \"default\" (prompts for approval on each action).",
               );
               defaultMode = await select<string>({
-                message: `Default permission mode [${existingLocalSettings.defaultMode !== undefined ? `current: ${existingLocalSettings.defaultMode}` : "default: acceptEdits"}]:`,
+                message: `Default permission mode [${existingLocalSettings.defaultMode !== undefined ? `current: ${existingLocalSettings.defaultMode}` : "agentflow default: acceptEdits"}]:`,
                 default: defaultMode,
                 choices: [
                   {
@@ -322,7 +322,7 @@ export async function init(options: { default?: boolean } = {}) {
                 "BASH_DEFAULT_TIMEOUT_MS: How long a bash command can run before timing out. Default is 120 000 ms (2 min) — workflow steps involving builds or tests often need more.",
               );
               bashTimeoutMs = await input({
-                message: `Bash timeout (ms) [${existingLocalSettings.bashTimeoutMs !== undefined ? `current: ${existingLocalSettings.bashTimeoutMs}` : "default: 300000"}]:`,
+                message: `Bash timeout (ms) [${existingLocalSettings.bashTimeoutMs !== undefined ? `current: ${existingLocalSettings.bashTimeoutMs}` : "agentflow default: 300000"}]:`,
                 default: bashTimeoutMs,
               });
               output.info("");
@@ -331,7 +331,7 @@ export async function init(options: { default?: boolean } = {}) {
                 "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: Context usage % at which auto-compaction triggers. Default is ~95% — compacting at 80% avoids mid-step interruption.",
               );
               autocompactPct = await input({
-                message: `Auto-compact at (% of context) [${existingLocalSettings.autocompactPct !== undefined ? `current: ${existingLocalSettings.autocompactPct}` : "default: 80"}]:`,
+                message: `Auto-compact at (% of context) [${existingLocalSettings.autocompactPct !== undefined ? `current: ${existingLocalSettings.autocompactPct}` : "agentflow default: 80"}]:`,
                 default: autocompactPct,
               });
               output.info("");
