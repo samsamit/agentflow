@@ -56,7 +56,7 @@ export function nextCommand(args: NextArgs): void {
 
   if (actionableStepNames.length === 0) {
     // No actionable steps but not complete — shouldn't normally happen in a valid workflow
-    throw new Error(`No ready steps found for task "${taskName}".`);
+    throw new Error(`No open steps found for task "${taskName}".`);
   }
 
   if (args.parallel) {
@@ -71,10 +71,10 @@ export function nextCommand(args: NextArgs): void {
     // Return just the first actionable step
     const firstStepName = actionableStepNames[0];
     if (firstStepName === undefined) {
-      throw new Error(`No ready steps found for task "${taskName}".`);
+      throw new Error(`No open steps found for task "${taskName}".`);
     }
-    const stepState = taskState.steps[firstStepName]?.state ?? "ready";
-    const status = stepState === "revision" ? "revision" : "ready";
+    const stepState = taskState.steps[firstStepName]?.state ?? "open";
+    const status = stepState === "revision" ? "revision" : "open";
     const stepConfig = flow.steps.find((s) => s.name === firstStepName);
     const subagent = stepConfig?.subagent === false ? undefined : stepConfig?.subagent;
     output.nextStep(firstStepName, status, subagent, taskName);

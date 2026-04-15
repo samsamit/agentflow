@@ -46,13 +46,13 @@ The last line of every `agentflow context` output is the exact `agentflow comple
 ## Step states
 
 ```
-blocked → ready → done
+blocked → open → done
                     ↓          ↑
                  revision ──────
 ```
 
 - **blocked** — dependencies not yet done; do not work on it
-- **ready** — dependencies met; this is your next step
+- **open** — dependencies met; this is your next step
 - **done** — completed
 - **revision** — a validator step flagged it; rework required
 
@@ -65,7 +65,7 @@ When a step is in `revision` state, `agentflow context` automatically injects th
 ```
 agentflow next [--task <name>] [--parallel]
 ```
-Returns the next ready step and the exact command to run next. `--parallel` returns all currently ready steps for parallel execution. `--task` switches the active task.
+Returns the next open step and the exact command to run next. `--parallel` returns all currently open steps for parallel execution. `--task` switches the active task.
 
 ```
 agentflow context --step <name> [--task <name>]
@@ -75,7 +75,7 @@ Returns everything needed to complete a step: instructions, reference files, ups
 ```
 agentflow complete --step <name> [--task <name>]
 ```
-Marks a step done. Automatically finds which blocked steps are now unblocked and sets them to ready.
+Marks a step done. Automatically finds which blocked steps are now unblocked and sets them to open.
 
 ### Revision
 
@@ -166,7 +166,7 @@ Give the subagent this exact prompt, filling in the step name, task name, and an
 
 ### Parallel subagents
 
-When `agentflow next --parallel` returns multiple ready steps that each need a subagent, spawn all of them simultaneously using parallel Agent tool calls — one per step, each with the prompt above (including the same user context). Wait for all to return before looping back to `agentflow next`.
+When `agentflow next --parallel` returns multiple open steps that each need a subagent, spawn all of them simultaneously using parallel Agent tool calls — one per step, each with the prompt above (including the same user context). Wait for all to return before looping back to `agentflow next`.
 
 ## When the task is complete
 

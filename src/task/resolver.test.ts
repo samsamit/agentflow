@@ -43,7 +43,7 @@ describe("resolveActiveTask", () => {
     const state: TaskState = {
       active: false,
       flow: "plan",
-      steps: { research: { state: "ready" } },
+      steps: { research: { state: "open" } },
     };
     writeTaskState(taskDir, state);
     expect(() => resolveActiveTask(projectRoot)).toThrow(
@@ -58,7 +58,7 @@ describe("resolveActiveTask", () => {
     const state: TaskState = {
       active: true,
       flow: "plan",
-      steps: { research: { state: "ready" } },
+      steps: { research: { state: "open" } },
     };
     writeTaskState(taskDir, state);
     const result = resolveActiveTask(projectRoot);
@@ -75,7 +75,7 @@ describe("resolveTask", () => {
     const state: TaskState = {
       active: true,
       flow: "plan",
-      steps: { research: { state: "ready" } },
+      steps: { research: { state: "open" } },
     };
     writeTaskState(taskDir, state);
     const result = resolveTask(projectRoot);
@@ -89,7 +89,7 @@ describe("resolveTask", () => {
     const state: TaskState = {
       active: false,
       flow: "plan",
-      steps: { research: { state: "ready" } },
+      steps: { research: { state: "open" } },
     };
     writeTaskState(taskDir, state);
     const result = resolveTask(projectRoot, "other-task");
@@ -113,12 +113,12 @@ describe("setActiveTask", () => {
     const state1: TaskState = {
       active: true,
       flow: "plan",
-      steps: { research: { state: "ready" } },
+      steps: { research: { state: "open" } },
     };
     const state2: TaskState = {
       active: false,
       flow: "plan",
-      steps: { research: { state: "ready" } },
+      steps: { research: { state: "open" } },
     };
     writeTaskState(task1Dir, state1);
     writeTaskState(task2Dir, state2);

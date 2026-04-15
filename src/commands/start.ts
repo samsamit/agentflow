@@ -46,9 +46,9 @@ export function startCommand(args: StartArgs): void {
   // Deactivate all other tasks and activate this one
   setActiveTask(projectRoot, taskName);
 
-  // Determine active (ready) steps for output
+  // Determine active (open) steps for output
   const activeSteps = Object.entries(initialSteps)
-    .filter(([, s]) => s.state === "ready")
+    .filter(([, s]) => s.state === "open")
     .map(([name]) => name);
 
   output.taskStarted(taskName, flowName, activeSteps);

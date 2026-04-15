@@ -48,7 +48,7 @@ function makeTestProject(): string {
     ].join("\n")}\n`,
   );
 
-  // existing task: research=ready, plan-step=blocked, implement=blocked
+  // existing task: research=open, plan-step=blocked, implement=blocked
   const taskDir = path.join(projectRoot, "agentFlow", "tasks", "my-feature");
   fs.mkdirSync(taskDir, { recursive: true });
   fs.writeFileSync(
@@ -58,7 +58,7 @@ function makeTestProject(): string {
       "flow: plan",
       "steps:",
       "  research:",
-      "    state: ready",
+      "    state: open",
       "  plan-step:",
       "    state: blocked",
       "  implement:",
@@ -79,7 +79,7 @@ describe("completeCommand integration", () => {
     const state = readTaskState(taskDir);
 
     expect(state.steps.research?.state).toBe("done");
-    expect(state.steps["plan-step"]?.state).toBe("ready");
+    expect(state.steps["plan-step"]?.state).toBe("open");
     expect(state.steps.implement?.state).toBe("blocked");
 
     fs.rmSync(projectRoot, { recursive: true });
@@ -101,7 +101,7 @@ describe("completeCommand integration", () => {
         "    revisionCount: 1",
         "    revisedBy: plan-step",
         "  plan-step:",
-        "    state: ready",
+        "    state: open",
         "  implement:",
         "    state: blocked",
       ].join("\n")}\n`,
@@ -126,7 +126,7 @@ describe("completeCommand integration", () => {
     fs.rmSync(projectRoot, { recursive: true });
   });
 
-  it("throws when step is not in ready or revision state", () => {
+  it("throws when step is not in open or revision state", () => {
     const projectRoot = makeTestProject();
 
     expect(() =>
@@ -170,7 +170,7 @@ describe("completeCommand integration", () => {
         "flow: plan",
         "steps:",
         "  research:",
-        "    state: ready",
+        "    state: open",
         "  implement:",
         "    state: blocked",
       ].join("\n")}\n`,

@@ -31,7 +31,7 @@ function makeTaskDir(projectRoot: string, taskName: string): string {
   return dir;
 }
 
-describe("assembleContext — ready state", () => {
+describe("assembleContext — open state", () => {
   it("includes step name, description, instructions, generates instruction, and complete command", () => {
     const projectRoot = makeTempDir();
     const flowName = "plan";
@@ -59,7 +59,7 @@ describe("assembleContext — ready state", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const taskStepStates: Record<string, StepState> = {
       research: stepState,
     };
@@ -117,7 +117,7 @@ describe("assembleContext — ready state", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
 
     const result = assembleContext({
       stepName: "research",
@@ -172,7 +172,7 @@ describe("assembleContext — ready state", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const taskStepStates: Record<string, StepState> = {
       research: { state: "done" },
       plan: stepState,
@@ -232,9 +232,9 @@ describe("assembleContext — optional skipped upstream step", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const taskStepStates: Record<string, StepState> = {
-      research: { state: "ready" },
+      research: { state: "open" },
       plan: stepState,
     };
 
@@ -293,7 +293,7 @@ describe("assembleContext — missing required upstream file", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const taskStepStates: Record<string, StepState> = {
       research: { state: "done" },
       plan: stepState,
@@ -420,7 +420,7 @@ describe("assembleContext — :ref in context.steps", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const taskStepStates: Record<string, StepState> = {
       research: { state: "done" },
       plan: stepState,
@@ -483,7 +483,7 @@ describe("assembleContext — :ref in validates", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const taskStepStates: Record<string, StepState> = {
       research: { state: "done" },
       review: stepState,
@@ -558,7 +558,7 @@ describe("assembleContext — validates steps", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const taskStepStates: Record<string, StepState> = {
       research: { state: "done" },
       plan: { state: "done" },
@@ -620,7 +620,7 @@ describe("assembleContextDebug", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const entries = assembleContextDebug({
       stepName: "research",
       taskName: "my-task",
@@ -664,7 +664,7 @@ describe("assembleContextDebug", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const entries = assembleContextDebug({
       stepName: "research",
       taskName: "my-task",
@@ -713,7 +713,7 @@ describe("assembleContextDebug", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const entries = assembleContextDebug({
       stepName: "plan",
       taskName: "my-task",
@@ -761,7 +761,7 @@ describe("assembleContextDebug", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const entries = assembleContextDebug({
       stepName: "plan",
       taskName: "my-task",
@@ -812,7 +812,7 @@ describe("assembleContextDebug", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const entries = assembleContextDebug({
       stepName: "review",
       taskName: "my-task",
@@ -861,7 +861,7 @@ describe("assembleContextDebug", () => {
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const entries = assembleContextDebug({
       stepName: "review",
       taskName: "my-task",
@@ -972,7 +972,7 @@ describe("assembleContext — deduplication of steps in both context.steps and v
       ],
     };
 
-    const stepState: StepState = { state: "ready" };
+    const stepState: StepState = { state: "open" };
     const taskStepStates: Record<string, StepState> = {
       research: { state: "done" },
       review: stepState,

@@ -62,7 +62,7 @@ The agent will:
 1. Check for an existing active task (`agentflow list tasks`)
 2. Start a new task if needed (`agentflow start --task <name> --flow plan`)
 3. Loop through steps automatically:
-   - `agentflow next` — find the next ready step
+   - `agentflow next` — find the next open step
    - `agentflow context --step <name>` — receive full instructions + upstream outputs
    - Do the work described in the context
    - `agentflow complete --step <name>` — mark done, unblock dependents

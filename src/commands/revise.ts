@@ -65,14 +65,14 @@ export function reviseCommand(args: ReviseArgs): void {
     const s = updatedSteps[name];
     const requires = depGraph.get(name) ?? [];
     const allDepsDone = requires.every((dep) => updatedSteps[dep]?.state === "done");
-    const newState = allDepsDone ? ("ready" as const) : ("blocked" as const);
+    const newState = allDepsDone ? ("open" as const) : ("blocked" as const);
     if (s !== undefined) {
       const { revisedBy: _revisedBy, ...rest } = s;
       updatedSteps[name] = { ...rest, state: newState };
     } else {
       updatedSteps[name] = { state: newState };
     }
-    if (newState === "ready") {
+    if (newState === "open") {
       cascadedReady.push(name);
     } else {
       cascadedBlocked.push(name);

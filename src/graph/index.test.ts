@@ -5,7 +5,7 @@ import {
   detectCycle,
   isTaskComplete,
   resolveActionableSteps,
-  resolveReadySteps,
+  resolveOpenSteps,
   resolveTransitiveCascade,
   resolveUnblockedSteps,
   topologicalSort,
@@ -99,35 +99,35 @@ describe("detectCycle", () => {
 });
 
 // ---------------------------------------------------------------------------
-// resolveReadySteps
+// resolveOpenSteps
 // ---------------------------------------------------------------------------
 
-describe("resolveReadySteps", () => {
-  it("returns only steps in ready state", () => {
+describe("resolveOpenSteps", () => {
+  it("returns only steps in open state", () => {
     const states: Record<string, StepState> = {
-      research: { state: "ready" },
+      research: { state: "open" },
       plan: { state: "blocked" },
       "task-breakdown": { state: "blocked" },
       implement: { state: "blocked" },
       review: { state: "blocked" },
     };
-    expect(resolveReadySteps(linearSteps, states)).toEqual(["research"]);
+    expect(resolveOpenSteps(linearSteps, states)).toEqual(["research"]);
   });
 
-  it("returns multiple ready steps when present", () => {
+  it("returns multiple open steps when present", () => {
     const states: Record<string, StepState> = {
-      research: { state: "ready" },
-      design: { state: "ready" },
+      research: { state: "open" },
+      design: { state: "open" },
       plan: { state: "blocked" },
       implement: { state: "blocked" },
     };
-    const ready = resolveReadySteps(diamondSteps, states);
-    expect(ready).toContain("research");
-    expect(ready).toContain("design");
-    expect(ready).toHaveLength(2);
+    const openSteps = resolveOpenSteps(diamondSteps, states);
+    expect(openSteps).toContain("research");
+    expect(openSteps).toContain("design");
+    expect(openSteps).toHaveLength(2);
   });
 
-  it("returns empty array when no steps are ready", () => {
+  it("returns empty array when no steps are open", () => {
     const states: Record<string, StepState> = {
       research: { state: "done" },
       plan: { state: "done" },
@@ -135,10 +135,10 @@ describe("resolveReadySteps", () => {
       implement: { state: "done" },
       review: { state: "done" },
     };
-    expect(resolveReadySteps(linearSteps, states)).toEqual([]);
+    expect(resolveOpenSteps(linearSteps, states)).toEqual([]);
   });
 
-  it("treats revision state steps as not ready", () => {
+  it("treats revision state steps as not open", () => {
     const states: Record<string, StepState> = {
       research: { state: "revision" },
       plan: { state: "blocked" },
@@ -146,7 +146,7 @@ describe("resolveReadySteps", () => {
       implement: { state: "blocked" },
       review: { state: "blocked" },
     };
-    expect(resolveReadySteps(linearSteps, states)).toEqual([]);
+    expect(resolveOpenSteps(linearSteps, states)).toEqual([]);
   });
 });
 
@@ -155,9 +155,9 @@ describe("resolveReadySteps", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveActionableSteps", () => {
-  it("returns ready steps", () => {
+  it("returns open steps", () => {
     const states: Record<string, StepState> = {
-      research: { state: "ready" },
+      research: { state: "open" },
       plan: { state: "blocked" },
       "task-breakdown": { state: "blocked" },
       implement: { state: "blocked" },
@@ -177,10 +177,10 @@ describe("resolveActionableSteps", () => {
     expect(resolveActionableSteps(linearSteps, states)).toEqual(["research"]);
   });
 
-  it("returns both ready and revision steps", () => {
+  it("returns both open and revision steps", () => {
     const states: Record<string, StepState> = {
       research: { state: "revision", revisedBy: "review" },
-      plan: { state: "ready" },
+      plan: { state: "open" },
       "task-breakdown": { state: "blocked" },
       implement: { state: "blocked" },
       review: { state: "blocked" },
@@ -360,9 +360,9 @@ describe("isTaskComplete", () => {
     expect(isTaskComplete(states)).toBe(true);
   });
 
-  it("returns false when any step is ready", () => {
+  it("returns false when any step is open", () => {
     const states: Record<string, StepState> = {
-      research: { state: "ready" },
+      research: { state: "open" },
       plan: { state: "blocked" },
     };
     expect(isTaskComplete(states)).toBe(false);

@@ -44,7 +44,7 @@ program
   .command("next")
   .description("Get the next step(s) to work on")
   .option("--task <name>", "task name (sets as active if given)")
-  .option("--parallel", "return all currently ready steps")
+  .option("--parallel", "return all currently open steps")
   .option("--resume", "clear a flow pause and proceed to the next step")
   .action((options: { task?: string; parallel?: boolean; resume?: boolean }) =>
     nextCommandHandler(options),

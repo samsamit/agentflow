@@ -9,7 +9,7 @@ describe("taskStateSchema round-trip", () => {
       active: true,
       flow: "plan",
       steps: {
-        research: { state: "ready" },
+        research: { state: "open" },
         plan: { state: "blocked" },
       },
     };
@@ -48,7 +48,7 @@ describe("taskStateSchema round-trip", () => {
       pausedAfterStep: "research",
       steps: {
         research: { state: "done" },
-        plan: { state: "ready" },
+        plan: { state: "open" },
       },
     };
     const yaml = stringify(state);

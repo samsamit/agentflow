@@ -16,7 +16,7 @@ describe("readTaskState / writeTaskState", () => {
       active: true,
       flow: "plan",
       steps: {
-        research: { state: "ready" },
+        research: { state: "open" },
         plan: { state: "blocked" },
       },
     };

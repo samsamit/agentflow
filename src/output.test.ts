@@ -38,9 +38,9 @@ describe("output.taskStarted", () => {
 describe("output.nextStep", () => {
   it("prints step name, status, and run command (no subagent)", async () => {
     const { nextStep } = await import("./output.js");
-    nextStep("research", "ready");
+    nextStep("research", "open");
     expect(captured).toBe(
-      "Step: research\nStatus: ready\nRun: agentflow context --step research\n",
+      "Step: research\nStatus: open\nRun: agentflow context --step research\n",
     );
   });
 
@@ -54,17 +54,17 @@ describe("output.nextStep", () => {
 
   it("prints named subagent variant", async () => {
     const { nextStep } = await import("./output.js");
-    nextStep("research", "ready", "researcher", "my-feature");
+    nextStep("research", "open", "researcher", "my-feature");
     expect(captured).toBe(
-      'Step: research\nStatus: ready\nSubagent: spawn subagent "researcher"\nThen run: agentflow context --step research --task my-feature\n',
+      'Step: research\nStatus: open\nSubagent: spawn subagent "researcher"\nThen run: agentflow context --step research --task my-feature\n',
     );
   });
 
   it("prints generic subagent variant when subagent is true", async () => {
     const { nextStep } = await import("./output.js");
-    nextStep("research", "ready", true, "my-feature");
+    nextStep("research", "open", true, "my-feature");
     expect(captured).toBe(
-      "Step: research\nStatus: ready\nSubagent: spawn a subagent\nThen run: agentflow context --step research --task my-feature\n",
+      "Step: research\nStatus: open\nSubagent: spawn a subagent\nThen run: agentflow context --step research --task my-feature\n",
     );
   });
 });
@@ -130,15 +130,15 @@ describe("output.stepComplete", () => {
 });
 
 describe("output.stepRevised", () => {
-  it("prints revision info with ready and blocked cascaded steps", async () => {
+  it("prints revision info with open and blocked cascaded steps", async () => {
     const { stepRevised } = await import("./output.js");
     stepRevised("research", 2, 3, ["plan"], ["task-breakdown", "implement", "review"]);
     expect(captured).toBe(
-      "Step marked for revision: research (revision 2/3)\nCascaded to ready: plan\nCascaded to blocked: task-breakdown, implement, review\nRun: agentflow next\n",
+      "Step marked for revision: research (revision 2/3)\nCascaded to open: plan\nCascaded to blocked: task-breakdown, implement, review\nRun: agentflow next\n",
     );
   });
 
-  it("omits ready line when no steps are ready", async () => {
+  it("omits open line when no steps are open", async () => {
     const { stepRevised } = await import("./output.js");
     stepRevised("research", 1, 3, [], ["plan", "implement"]);
     expect(captured).toBe(
@@ -150,7 +150,7 @@ describe("output.stepRevised", () => {
     const { stepRevised } = await import("./output.js");
     stepRevised("research", 1, 3, ["plan", "implement"], []);
     expect(captured).toBe(
-      "Step marked for revision: research (revision 1/3)\nCascaded to ready: plan, implement\nRun: agentflow next\n",
+      "Step marked for revision: research (revision 1/3)\nCascaded to open: plan, implement\nRun: agentflow next\n",
     );
   });
 });
@@ -182,7 +182,7 @@ describe("output.taskState", () => {
         },
         {
           name: "plan",
-          state: "ready",
+          state: "open",
           generates: "plan.md",
           generatePath: "tasks/my-feature/plan.md",
           fileExists: false,
@@ -200,7 +200,7 @@ describe("output.taskState", () => {
     expect(captured).toContain("done");
     expect(captured).toContain("[exists]");
     expect(captured).toContain("plan");
-    expect(captured).toContain("ready");
+    expect(captured).toContain("open");
     expect(captured).toContain("[missing]");
     expect(captured).toContain("task-breakdown");
     expect(captured).toContain("blocked");

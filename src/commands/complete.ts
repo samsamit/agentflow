@@ -31,11 +31,11 @@ export function completeCommand(args: CompleteArgs): void {
     throw new Error(`Step "${stepName}" not found in flow "${taskState.flow}".`);
   }
 
-  // Validate the step is in a completable state (ready or revision)
+  // Validate the step is in a completable state (open or revision)
   const currentStepState = taskState.steps[stepName];
   if (
     currentStepState === undefined ||
-    (currentStepState.state !== "ready" && currentStepState.state !== "revision")
+    (currentStepState.state !== "open" && currentStepState.state !== "revision")
   ) {
     const currentState = currentStepState?.state ?? "unknown";
     throw new Error(
@@ -57,11 +57,11 @@ export function completeCommand(args: CompleteArgs): void {
   // Find which blocked steps are now unblocked
   const unblocked = resolveUnblockedSteps(flow.steps, updatedSteps, stepName);
 
-  // Mark newly unblocked steps as ready
+  // Mark newly unblocked steps as open
   for (const name of unblocked) {
     const s = updatedSteps[name];
     if (s !== undefined) {
-      updatedSteps[name] = { ...s, state: "ready" as const };
+      updatedSteps[name] = { ...s, state: "open" as const };
     }
   }
 

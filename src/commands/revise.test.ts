@@ -8,7 +8,7 @@ import { reviseCommand } from "./revise.js";
 /**
  * Creates a minimal project with a linear flow: research → plan → implement → review
  * with maxRevisions: 3.
- * Initial task state: research=done, plan=done, implement=done, review=ready
+ * Initial task state: research=done, plan=done, implement=done, review=open
  */
 function makeTestProject(): string {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agentflow-revise-test-"));
@@ -55,7 +55,7 @@ function makeTestProject(): string {
     ].join("\n")}\n`,
   );
 
-  // task: all done except review which is ready
+  // task: all done except review which is open
   const taskDir = path.join(projectRoot, "agentFlow", "tasks", "my-feature");
   fs.mkdirSync(taskDir, { recursive: true });
   fs.writeFileSync(
@@ -71,7 +71,7 @@ function makeTestProject(): string {
       "  implement:",
       "    state: done",
       "  review:",
-      "    state: ready",
+      "    state: open",
     ].join("\n")}\n`,
   );
 
@@ -135,7 +135,7 @@ describe("reviseCommand integration", () => {
         "  implement:",
         "    state: done",
         "  review:",
-        "    state: ready",
+        "    state: open",
       ].join("\n")}\n`,
     );
 
@@ -174,12 +174,12 @@ describe("reviseCommand integration", () => {
     fs.rmSync(projectRoot, { recursive: true });
   });
 
-  it("cascades a step to ready when all its deps are still done", () => {
+  it("cascades a step to open when all its deps are still done", () => {
     const projectRoot = makeTestProject();
 
     // Override: research and plan-step are done, implement needs revision
     // review requires only implement, so review should be blocked
-    // But if we had a parallel step with all-done deps, it'd be ready
+    // But if we had a parallel step with all-done deps, it'd be open
     // Here: revise plan-step — implement depends on plan-step (not done), review depends on implement
     reviseCommand({
       projectRoot,
@@ -238,7 +238,7 @@ describe("reviseCommand integration", () => {
         "  implement:",
         "    state: done",
         "  review:",
-        "    state: ready",
+        "    state: open",
       ].join("\n")}\n`,
     );
 

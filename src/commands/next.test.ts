@@ -47,7 +47,7 @@ function makePausedTask(projectRoot: string): string {
       "  research:",
       "    state: done",
       "  implement:",
-      "    state: ready",
+      "    state: open",
     ].join("\n")}\n`,
   );
   return taskDir;
@@ -117,7 +117,7 @@ describe("nextCommand pause behavior", () => {
         "flow: plan",
         "steps:",
         "  research:",
-        "    state: ready",
+        "    state: open",
         "  implement:",
         "    state: blocked",
       ].join("\n")}\n`,

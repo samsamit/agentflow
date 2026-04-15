@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const stepStateSchema = z.object({
-  state: z.enum(["ready", "done", "blocked", "revision"]),
+  state: z.enum(["open", "done", "blocked", "revision"]),
   revisionCount: z.number().int().nonnegative().optional(),
   revisedBy: z.string().optional(),
 });

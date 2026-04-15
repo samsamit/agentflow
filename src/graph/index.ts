@@ -123,19 +123,19 @@ export function detectCycle(steps: StepConfig[]): string[] | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns names of steps currently in `ready` state.
+ * Returns names of steps currently in `open` state.
  */
-export function resolveReadySteps(
+export function resolveOpenSteps(
   steps: StepConfig[],
   taskStepStates: Record<string, StepState>,
 ): string[] {
   return steps
-    .filter((step) => taskStepStates[step.name]?.state === "ready")
+    .filter((step) => taskStepStates[step.name]?.state === "open")
     .map((step) => step.name);
 }
 
 /**
- * Returns names of steps that are actionable — either `ready` or `revision`.
+ * Returns names of steps that are actionable — either `open` or `revision`.
  * These are the steps an agent should work on next.
  */
 export function resolveActionableSteps(
@@ -145,13 +145,13 @@ export function resolveActionableSteps(
   return steps
     .filter((step) => {
       const state = taskStepStates[step.name]?.state;
-      return state === "ready" || state === "revision";
+      return state === "open" || state === "revision";
     })
     .map((step) => step.name);
 }
 
 /**
- * Returns names of `blocked` steps that should become `ready` after
+ * Returns names of `blocked` steps that should become `open` after
  * `completedStepName` is marked done (i.e. all their requires are now done).
  *
  * NOTE: The caller is responsible for having already updated the state of
@@ -180,7 +180,7 @@ export function resolveUnblockedSteps(
 
 /**
  * Returns names of all transitively dependent steps that should be reset to
- * `ready` after `revisedStepName` is marked for revision.
+ * `open` after `revisedStepName` is marked for revision.
  * Does NOT include the revised step itself.
  */
 export function resolveTransitiveCascade(

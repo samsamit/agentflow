@@ -292,17 +292,17 @@ function buildReverseDependencyGraph(steps) {
 	return graph;
 }
 /**
-* Returns names of steps that are actionable — either `ready` or `revision`.
+* Returns names of steps that are actionable — either `open` or `revision`.
 * These are the steps an agent should work on next.
 */
 function resolveActionableSteps(steps, taskStepStates) {
 	return steps.filter((step) => {
 		const state = taskStepStates[step.name]?.state;
-		return state === "ready" || state === "revision";
+		return state === "open" || state === "revision";
 	}).map((step) => step.name);
 }
 /**
-* Returns names of `blocked` steps that should become `ready` after
+* Returns names of `blocked` steps that should become `open` after
 * `completedStepName` is marked done (i.e. all their requires are now done).
 *
 * NOTE: The caller is responsible for having already updated the state of
@@ -321,7 +321,7 @@ function resolveUnblockedSteps(steps, taskStepStates, completedStepName) {
 }
 /**
 * Returns names of all transitively dependent steps that should be reset to
-* `ready` after `revisedStepName` is marked for revision.
+* `open` after `revisedStepName` is marked for revision.
 * Does NOT include the revised step itself.
 */
 function resolveTransitiveCascade(steps, _taskStepStates, revisedStepName) {
@@ -497,7 +497,7 @@ function stepComplete(stepName, unblocked, pauseAfter = false) {
 }
 function stepRevised(stepName, revisionCount, maxRevisions, cascadedReady, cascadedBlocked) {
 	write(`Step marked for revision: ${stepName} (revision ${revisionCount}/${maxRevisions})`);
-	if (cascadedReady.length > 0) write(`Cascaded to ready: ${cascadedReady.join(", ")}`);
+	if (cascadedReady.length > 0) write(`Cascaded to open: ${cascadedReady.join(", ")}`);
 	if (cascadedBlocked.length > 0) write(`Cascaded to blocked: ${cascadedBlocked.join(", ")}`);
 	write("Run: agentflow next");
 }
@@ -545,7 +545,7 @@ function error(err) {
 //#region src/task/schema.ts
 const stepStateSchema = z.object({
 	state: z.enum([
-		"ready",
+		"open",
 		"done",
 		"blocked",
 		"revision"
@@ -642,7 +642,7 @@ function setActiveTask(projectRoot, taskName) {
 //#region src/task/state.ts
 /**
 * Computes the initial step states for a new task.
-* Steps with no `requires` (or an empty array) are `ready`.
+* Steps with no `requires` (or an empty array) are `open`.
 * All others are `blocked`.
 * Pure function — no filesystem access.
 */
@@ -650,7 +650,7 @@ function getInitialStepStates(steps) {
 	const result = {};
 	for (const step of steps) {
 		const hasRequires = Array.isArray(step.requires) && step.requires.length > 0;
-		result[step.name] = { state: hasRequires ? "blocked" : "ready" };
+		result[step.name] = { state: hasRequires ? "blocked" : "open" };
 	}
 	return result;
 }
@@ -668,7 +668,7 @@ function completeCommand(args) {
 	const flow = loadFlow(projectRoot, taskState.flow);
 	if (!flow.steps.some((s) => s.name === stepName)) throw new Error(`Step "${stepName}" not found in flow "${taskState.flow}".`);
 	const currentStepState = taskState.steps[stepName];
-	if (currentStepState === void 0 || currentStepState.state !== "ready" && currentStepState.state !== "revision") {
+	if (currentStepState === void 0 || currentStepState.state !== "open" && currentStepState.state !== "revision") {
 		const currentState = currentStepState?.state ?? "unknown";
 		throw new Error(`Step "${stepName}" is not in a completable state (current state: ${currentState}).`);
 	}
@@ -685,7 +685,7 @@ function completeCommand(args) {
 		const s = updatedSteps[name];
 		if (s !== void 0) updatedSteps[name] = {
 			...s,
-			state: "ready"
+			state: "open"
 		};
 	}
 	const pauseAfter = flow.steps.find((s) => s.name === stepName)?.pauseAfter === true;
@@ -1382,9 +1382,9 @@ async function init(options = {}) {
 						let bashTimeoutMs = existingLocalSettings.bashTimeoutMs ?? "300000";
 						let autocompactPct = existingLocalSettings.autocompactPct ?? "80";
 						if (!options.default) {
-							initSettingDescription("defaultMode: How Claude handles permission requests during workflow steps.");
+							initSettingDescription("defaultMode: How Claude handles permission requests during workflow steps. Claude Code defaults to \"default\" (prompts for approval on each action).");
 							defaultMode = await select({
-								message: `Default permission mode [${existingLocalSettings.defaultMode !== void 0 ? `current: ${existingLocalSettings.defaultMode}` : "default: acceptEdits"}]:`,
+								message: `Default permission mode [${existingLocalSettings.defaultMode !== void 0 ? `current: ${existingLocalSettings.defaultMode}` : "agentflow default: acceptEdits"}]:`,
 								default: defaultMode,
 								choices: [{
 									name: "acceptEdits  (recommended) — auto-approve file edits for autonomous step execution",
@@ -1397,13 +1397,13 @@ async function init(options = {}) {
 							info("");
 							initSettingDescription("BASH_DEFAULT_TIMEOUT_MS: How long a bash command can run before timing out. Default is 120 000 ms (2 min) — workflow steps involving builds or tests often need more.");
 							bashTimeoutMs = await input({
-								message: `Bash timeout (ms) [${existingLocalSettings.bashTimeoutMs !== void 0 ? `current: ${existingLocalSettings.bashTimeoutMs}` : "default: 300000"}]:`,
+								message: `Bash timeout (ms) [${existingLocalSettings.bashTimeoutMs !== void 0 ? `current: ${existingLocalSettings.bashTimeoutMs}` : "agentflow default: 300000"}]:`,
 								default: bashTimeoutMs
 							});
 							info("");
 							initSettingDescription("CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: Context usage % at which auto-compaction triggers. Default is ~95% — compacting at 80% avoids mid-step interruption.");
 							autocompactPct = await input({
-								message: `Auto-compact at (% of context) [${existingLocalSettings.autocompactPct !== void 0 ? `current: ${existingLocalSettings.autocompactPct}` : "default: 80"}]:`,
+								message: `Auto-compact at (% of context) [${existingLocalSettings.autocompactPct !== void 0 ? `current: ${existingLocalSettings.autocompactPct}` : "agentflow default: 80"}]:`,
 								default: autocompactPct
 							});
 							info("");
@@ -1553,7 +1553,7 @@ function nextCommand(args) {
 		return;
 	}
 	const actionableStepNames = resolveActionableSteps(flow.steps, taskState.steps);
-	if (actionableStepNames.length === 0) throw new Error(`No ready steps found for task "${taskName}".`);
+	if (actionableStepNames.length === 0) throw new Error(`No open steps found for task "${taskName}".`);
 	if (args.parallel) nextParallel(actionableStepNames.map((name) => {
 		const stepConfig = flow.steps.find((s) => s.name === name);
 		const subagent = stepConfig?.subagent === false ? void 0 : stepConfig?.subagent;
@@ -1564,8 +1564,8 @@ function nextCommand(args) {
 	}), taskName);
 	else {
 		const firstStepName = actionableStepNames[0];
-		if (firstStepName === void 0) throw new Error(`No ready steps found for task "${taskName}".`);
-		const status = (taskState.steps[firstStepName]?.state ?? "ready") === "revision" ? "revision" : "ready";
+		if (firstStepName === void 0) throw new Error(`No open steps found for task "${taskName}".`);
+		const status = (taskState.steps[firstStepName]?.state ?? "open") === "revision" ? "revision" : "open";
 		const stepConfig = flow.steps.find((s) => s.name === firstStepName);
 		nextStep(firstStepName, status, stepConfig?.subagent === false ? void 0 : stepConfig?.subagent, taskName);
 	}
@@ -1622,7 +1622,7 @@ function reviseCommand(args) {
 	const cascadedBlocked = [];
 	for (const name of cascaded) {
 		const s = updatedSteps[name];
-		const newState = (depGraph.get(name) ?? []).every((dep) => updatedSteps[dep]?.state === "done") ? "ready" : "blocked";
+		const newState = (depGraph.get(name) ?? []).every((dep) => updatedSteps[dep]?.state === "done") ? "open" : "blocked";
 		if (s !== void 0) {
 			const { revisedBy: _revisedBy, ...rest } = s;
 			updatedSteps[name] = {
@@ -1630,7 +1630,7 @@ function reviseCommand(args) {
 				state: newState
 			};
 		} else updatedSteps[name] = { state: newState };
-		if (newState === "ready") cascadedReady.push(name);
+		if (newState === "open") cascadedReady.push(name);
 		else cascadedBlocked.push(name);
 	}
 	writeTaskState(taskDir, {
@@ -1676,7 +1676,7 @@ function startCommand(args) {
 	createFolder(taskDir);
 	writeTaskState(taskDir, taskState);
 	setActiveTask(projectRoot, taskName);
-	taskStarted(taskName, flowName, Object.entries(initialSteps).filter(([, s]) => s.state === "ready").map(([name]) => name));
+	taskStarted(taskName, flowName, Object.entries(initialSteps).filter(([, s]) => s.state === "open").map(([name]) => name));
 }
 /**
 * CLI command handler for `agentflow start`.
@@ -1798,7 +1798,7 @@ program.name("agentflow").description("A CLI tool for managing agentic workflows
 program.command("init").description("Initialize agentflow in the current directory").option("--default", "Non-interactive init: scaffold structure only, skip flows, IDE, and AI tool setup").action((opts) => init(opts));
 program.command("validate").description("Validate project config and flows").option("--flow <name>", "validate a single flow by name").action((options) => validateCommand(options));
 program.command("start").description("Create a new task and set it as active").requiredOption("--task <name>", "task name").option("--flow <name>", "flow name (defaults to defaultFlow)").action((options) => startCommandHandler(options));
-program.command("next").description("Get the next step(s) to work on").option("--task <name>", "task name (sets as active if given)").option("--parallel", "return all currently ready steps").option("--resume", "clear a flow pause and proceed to the next step").action((options) => nextCommandHandler(options));
+program.command("next").description("Get the next step(s) to work on").option("--task <name>", "task name (sets as active if given)").option("--parallel", "return all currently open steps").option("--resume", "clear a flow pause and proceed to the next step").action((options) => nextCommandHandler(options));
 program.command("context").description("Output full context for a step to inject into an agent prompt").requiredOption("--step <name>", "step name").option("--task <name>", "task name (sets as active if given)").option("--debug", "list all context files with line and token counts (replaces normal output)").action((options) => contextCommandHandler(options));
 program.command("state").description("Show the current state of all steps in a task").option("--task <name>", "task name (defaults to active task)").action((options) => stateCommandHandler(options));
 program.command("complete").description("Mark a step as done and unblock downstream steps").requiredOption("--step <name>", "step name").option("--task <name>", "task name (sets as active if given)").action((options) => completeCommandHandler(options));

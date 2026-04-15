@@ -96,12 +96,12 @@ Shows all steps for the active (or named) task: status, generated file paths, an
 
 ### `agentflow next [--task <name>] [--parallel]`
 
-Returns the next ready step and the exact command to run next.
+Returns the next open step and the exact command to run next.
 
 | Flag | Description |
 |---|---|
 | `--task <name>` | Switch the active task |
-| `--parallel` | Return all currently ready steps for parallel execution |
+| `--parallel` | Return all currently open steps for parallel execution |
 
 When all steps are done, outputs:
 ```
@@ -163,7 +163,7 @@ Validates one or all flow config files. Checks for:
 ## Step states
 
 ```
-blocked → ready → done
+blocked → open → done
                     ↓          ↑
                  revision ──────
 ```
@@ -171,6 +171,6 @@ blocked → ready → done
 | State | Meaning |
 |---|---|
 | `blocked` | Dependencies not yet complete — do not work on this step |
-| `ready` | All dependencies met — this is the next step to work on |
+| `open` | All dependencies met — this is the next step to work on |
 | `done` | Completed |
 | `revision` | A validator step flagged it — rework required |

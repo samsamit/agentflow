@@ -65,7 +65,7 @@ describe("startCommand integration", () => {
 
     expect(state.active).toBe(true);
     expect(state.flow).toBe("plan");
-    expect(state.steps.research?.state).toBe("ready");
+    expect(state.steps.research?.state).toBe("open");
     expect(state.steps.implement?.state).toBe("blocked");
 
     fs.rmSync(projectRoot, { recursive: true });
@@ -122,7 +122,7 @@ describe("startCommand integration", () => {
     const state = readTaskState(taskDir);
 
     expect(state.flow).toBe("research");
-    expect(state.steps.gather?.state).toBe("ready");
+    expect(state.steps.gather?.state).toBe("open");
 
     fs.rmSync(projectRoot, { recursive: true });
   });

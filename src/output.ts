@@ -140,7 +140,7 @@ export function taskComplete(taskName: string): void {
 /** subagent: undefined = no subagent, true = generic, string = named */
 export function nextStep(
   stepName: string,
-  status: "ready" | "revision",
+  status: "open" | "revision",
   subagent?: string | true,
   taskName?: string,
 ): void {
@@ -280,7 +280,7 @@ export function stepRevised(
 ): void {
   write(`Step marked for revision: ${stepName} (revision ${revisionCount}/${maxRevisions})`);
   if (cascadedReady.length > 0) {
-    write(`Cascaded to ready: ${cascadedReady.join(", ")}`);
+    write(`Cascaded to open: ${cascadedReady.join(", ")}`);
   }
   if (cascadedBlocked.length > 0) {
     write(`Cascaded to blocked: ${cascadedBlocked.join(", ")}`);
@@ -301,7 +301,7 @@ export function revisionIgnored(stepName: string, maxRevisions: number): void {
 
 export type StepStateEntry = {
   name: string;
-  state: "ready" | "done" | "blocked" | "revision";
+  state: "open" | "done" | "blocked" | "revision";
   generates?: string;
   generatePath?: string;
   fileExists?: boolean;
