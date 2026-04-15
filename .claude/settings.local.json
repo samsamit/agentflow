@@ -30,7 +30,8 @@
       "WebFetch(domain:gist.github.com)",
       "Bash(mkdir -p C:/Users/samut/Documents/PROJECTS/agent-chain-flow/.claude/skills/release)",
       "Bash(mv C:/Users/samut/.claude/skills/release/SKILL.md C:/Users/samut/Documents/PROJECTS/agent-chain-flow/.claude/skills/release/SKILL.md)",
-      "Bash(rmdir C:/Users/samut/.claude/skills/release)"
+      "Bash(rmdir C:/Users/samut/.claude/skills/release)",
+      "Bash(node *)"
     ]
   }
 }
